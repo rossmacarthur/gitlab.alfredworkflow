@@ -10,7 +10,13 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>4CB6B10F-36B2-4C66-9EA2-2455543BC364</string>
+				<string>98E066C9-5876-41F8-9DB8-85A519F65996</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
 			</dict>
 		</array>
 	</dict>
@@ -18,40 +24,49 @@
 	<string>Ross MacArthur</string>
 	<key>description</key>
 	<string>GitLab workflow</string>
+	<key>disabled</key>
+	<false/>
 	<key>name</key>
-	<string>gitlab-alfred-workflow</string>
+	<string>gitlab</string>
 	<key>objects</key>
 	<array>
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>clipboardtext</key>
-				<string>{query}</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.output.clipboard</string>
-			<key>uid</key>
-			<string>4CB6B10F-36B2-4C66-9EA2-2455543BC364</string>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
 				<key>argumenttreatemptyqueryasnil</key>
 				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
 				<key>argumenttype</key>
 				<integer>1</integer>
+				<key>escaping</key>
+				<integer>0</integer>
 				<key>keyword</key>
 				<string>gitlab</string>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
 				<key>queuedelayimmediatelyinitially</key>
 				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
 				<key>queuemode</key>
 				<integer>2</integer>
 				<key>runningsubtext</key>
 				<string>Loading...</string>
+				<key>script</key>
+				<string></string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
 				<key>scriptfile</key>
 				<string>gitlab-alfred-workflow</string>
+				<key>subtext</key>
+				<string></string>
 				<key>title</key>
-				<string>Search</string>
+				<string></string>
 				<key>type</key>
 				<integer>8</integer>
 				<key>withspace</key>
@@ -61,14 +76,35 @@
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
 			<string>F18920EB-F39D-4933-909C-1DF2DE57AB4C</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string></string>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+				<key>utf8</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>98E066C9-5876-41F8-9DB8-85A519F65996</string>
+			<key>version</key>
+			<integer>1</integer>
 		</dict>
 	</array>
 	<key>uidata</key>
 	<dict>
-		<key>4CB6B10F-36B2-4C66-9EA2-2455543BC364</key>
+		<key>98E066C9-5876-41F8-9DB8-85A519F65996</key>
 		<dict>
 			<key>xpos</key>
-			<integer>225</integer>
+			<integer>230</integer>
 			<key>ypos</key>
 			<integer>50</integer>
 		</dict>
@@ -80,5 +116,7 @@
 			<integer>50</integer>
 		</dict>
 	</dict>
+	<key>webaddress</key>
+	<string></string>
 </dict>
 </plist>
