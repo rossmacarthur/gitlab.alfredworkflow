@@ -1,14 +1,18 @@
 mod gitlab;
+mod human;
 
 use std::env;
 
 use anyhow::Result;
+use chrono::DateTime;
 use powerpack::Item;
 
 #[derive(Debug)]
-pub struct Issue {
+pub struct Object {
     title: String,
+    author: String,
     url: String,
+    created_at: DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -42,13 +46,22 @@ impl Command {
     }
 
     fn exec(self, query: &str) -> Result<Vec<Item<'static>>> {
+        let now = chrono::Utc::now();
         let items = match self {
-            Command::Issues => gitlab::issues::list()?,
-            Command::Core => gitlab::core::list()?,
+            Command::Issues => gitlab::issues()?,
+            Command::Core => gitlab::core()?,
         }
         .into_iter()
-        .filter(|issue| issue.title.to_ascii_lowercase().contains(query))
-        .map(|issue| powerpack::Item::new(issue.title).arg(issue.url))
+        .filter(|i| i.title.to_ascii_lowercase().contains(query))
+        .map(|i| {
+            powerpack::Item::new(i.title)
+                .subtitle(format!(
+                    "created {} by {}",
+                    human::format_ago((now - i.created_at).to_std().unwrap()),
+                    i.author
+                ))
+                .arg(i.url)
+        })
         .collect();
         Ok(items)
     }

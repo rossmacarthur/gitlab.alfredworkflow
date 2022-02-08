@@ -1,13 +1,26 @@
 use std::env;
 use std::io::prelude::*;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use chrono::DateTime;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use serde_json as json;
+
+use crate::Object;
 
 const GITLAB_TOKEN: &str = env!("GITLAB_TOKEN");
 
-fn graphql<T: DeserializeOwned>(query: &str) -> Result<T> {
+fn try_lookup(value: &json::Value, ptr: &str) -> Result<String> {
+    Ok(value
+        .pointer(ptr)
+        .with_context(|| format!("failed to lookup `{}`", ptr))?
+        .as_str()
+        .context("not a string")?
+        .to_owned())
+}
+
+fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
     #[derive(Debug, Serialize)]
     struct Query<'a> {
         query: &'a str,
@@ -20,10 +33,10 @@ fn graphql<T: DeserializeOwned>(query: &str) -> Result<T> {
     easy.fail_on_error(true)?;
     easy.follow_location(true)?;
     easy.http_headers({
-        let mut headers = curl::easy::List::new();
-        headers.append(&format!("Authorization: Bearer {}", GITLAB_TOKEN))?;
-        headers.append("Content-Type: application/json")?;
-        headers
+        let mut hl = curl::easy::List::new();
+        hl.append(&format!("Authorization: Bearer {}", GITLAB_TOKEN))?;
+        hl.append("Content-Type: application/json")?;
+        hl
     })?;
     easy.post(true)?;
     easy.url("https://gitlab.com/api/graphql")?;
@@ -41,121 +54,67 @@ fn graphql<T: DeserializeOwned>(query: &str) -> Result<T> {
     Ok(serde_json::from_slice(&buf)?)
 }
 
-pub mod issues {
-    use super::*;
+fn fetch_and_parse<T, F>(query: &str, ptr: &str, parse: F) -> Result<Vec<T>>
+where
+    F: Fn(&json::Value) -> Result<T>,
+{
+    let resp: json::Value = fetch(query)?;
+    let value = resp
+        .pointer(ptr)
+        .with_context(|| format!("failed to lookup `{}` from `{:?}`", ptr, resp))?;
+    let nodes = value.as_array().context("expected array")?;
+    nodes.iter().map(parse).collect()
+}
 
-    #[derive(Debug, Deserialize)]
-    struct Response {
-        data: Data,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Data {
-        project: Project,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Project {
-        issues: Node,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Node {
-        nodes: Vec<Issue>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Issue {
-        iid: String,
-        title: String,
-    }
-
-    pub fn list() -> Result<Vec<crate::Issue>> {
-        let resp: Response = graphql(
-            r#"
-query {
-    project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
-        issues {
-            nodes {
-                iid
-                title
+pub fn issues() -> Result<Vec<Object>> {
+    let query = r#"
+    query {
+        project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
+            issues(state: opened) {
+                nodes {
+                    title
+                    author {
+                        name
+                    }
+                    createdAt
+                    webUrl
+                }
             }
         }
     }
-}
-"#,
-        )?;
-
-        let issues = resp.data.project.issues.nodes;
-        Ok(issues
-            .into_iter()
-            .map(|Issue { iid, title, .. }| {
-                let url = format!(
-                    "https://gitlab.com/lunomoney/product-engineering/pods/connect-us/work/-/issues/{}",
-                    iid,
-                );
-                crate::Issue { title, url }
-            })
-            .collect())
-    }
+    "#;
+    fetch_and_parse(query, "/data/project/issues/nodes", parse_object)
 }
 
-pub mod core {
-    use super::*;
-
-    #[derive(Debug, Deserialize)]
-    struct Response {
-        data: Data,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Data {
-        project: Project,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Project {
-        #[serde(rename = "mergeRequests")]
-        merge_requests: Node,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct Node {
-        nodes: Vec<MergeRequest>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct MergeRequest {
-        iid: String,
-        title: String,
-    }
-
-    pub fn list() -> Result<Vec<crate::Issue>> {
-        let resp: Response = graphql(
-            r#"
+pub fn core() -> Result<Vec<Object>> {
+    let query = r#"
 query {
     project(fullPath: "lunomoney/product-engineering/core") {
-        mergeRequests {
+        mergeRequests(state: opened) {
             nodes {
-                iid
                 title
+                author {
+                    name
+                }
+                createdAt
+                webUrl
             }
         }
     }
 }
-"#,
-        )?;
+"#;
+    fetch_and_parse(query, "/data/project/mergeRequests/nodes", parse_object)
+}
 
-        let merge_requests = resp.data.project.merge_requests.nodes;
-        Ok(merge_requests
-            .into_iter()
-            .map(|MergeRequest { iid, title, .. }| {
-                let url = format!(
-                    "https://gitlab.com/lunomoney/product-engineering/core/-/merge_requests/{}",
-                    iid,
-                );
-                crate::Issue { title, url }
-            })
-            .collect())
-    }
+fn parse_object(value: &json::Value) -> Result<Object> {
+    let title = try_lookup(value, "/title")?;
+    let author = try_lookup(value, "/author/name")?;
+    let created_at: DateTime<chrono::Utc> = try_lookup(value, "/createdAt")?.parse()?;
+    let url = try_lookup(value, "/webUrl")?;
+    Ok(Object {
+        title,
+        url,
+        author,
+        created_at,
+    })
 }
