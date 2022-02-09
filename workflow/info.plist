@@ -46,7 +46,7 @@
 				<key>escaping</key>
 				<integer>0</integer>
 				<key>keyword</key>
-				<string>gitlab</string>
+				<string>gl</string>
 				<key>queuedelaycustom</key>
 				<integer>1</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -83,7 +83,7 @@
 			<key>config</key>
 			<dict>
 				<key>browser</key>
-				<string></string>
+				<string>com.google.Chrome</string>
 				<key>spaces</key>
 				<string></string>
 				<key>url</key>

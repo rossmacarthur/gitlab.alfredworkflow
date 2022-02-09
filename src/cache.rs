@@ -49,10 +49,9 @@ where
             };
 
             if needs_update {
-                detach::spawn(|| {
-                    if let Err(err) = update(&dir, &path, checksum, f) {
-                        log::error!("{:#}", err);
-                    }
+                detach::spawn(|| match update(&dir, &path, checksum, f) {
+                    Ok(()) => log::info!("fetched {} and updated cache", path.display()),
+                    Err(err) => log::error!("{:#}", err),
                 })?;
             }
 
@@ -61,10 +60,9 @@ where
         Err(err) if err.kind() == io::ErrorKind::NotFound => {
             fs::create_dir_all(&dir)?;
 
-            detach::spawn(|| {
-                if let Err(err) = update(&dir, &path, checksum, f) {
-                    log::error!("{:#}", err);
-                }
+            detach::spawn(|| match update(&dir, &path, checksum, f) {
+                Ok(()) => log::info!("fetched {} and updated cache", path.display()),
+                Err(err) => log::error!("{:#}", err),
             })?;
 
             // wait up to 5 seconds for the cache to be populated

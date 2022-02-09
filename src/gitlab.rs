@@ -62,6 +62,7 @@ query {
     project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
         issues(state: opened) {
             nodes {
+                iid
                 title
                 author {
                     name
@@ -100,6 +101,7 @@ query {
     project(fullPath: "lunomoney/product-engineering/core") {
         mergeRequests(state: opened) {
             nodes {
+                iid
                 title
                 author {
                     name
@@ -128,6 +130,7 @@ query {
 }
 
 fn parse_issue(value: json::Value) -> Result<Issue> {
+    let id = lookup(&value, "/iid")?;
     let title = lookup(&value, "/title")?;
     let author = lookup(&value, "/author/name")?;
     let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
@@ -135,6 +138,7 @@ fn parse_issue(value: json::Value) -> Result<Issue> {
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
     let assignees = lookup_list(&value, "/assignees/nodes", "/name")?;
     Ok(Issue {
+        id,
         title,
         url,
         author,
@@ -145,12 +149,14 @@ fn parse_issue(value: json::Value) -> Result<Issue> {
 }
 
 fn parse_merge_request(value: json::Value) -> Result<MergeRequest> {
+    let id = lookup(&value, "/iid")?;
     let title = lookup(&value, "/title")?;
     let author = lookup(&value, "/author/name")?;
     let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
     let url = lookup(&value, "/webUrl")?;
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
     Ok(MergeRequest {
+        id,
         title,
         url,
         author,
