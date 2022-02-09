@@ -10,9 +10,11 @@ use powerpack::env;
 use serde::{Deserialize, Serialize};
 use serde_json as json;
 
+use crate::logger;
+
 const UPDATE_INTERVAL: Duration = Duration::from_secs(60);
 
-static CACHE_DIR: Lazy<PathBuf> = Lazy::new(|| {
+pub static DIR: Lazy<PathBuf> = Lazy::new(|| {
     env::workflow_cache().unwrap_or_else(|| {
         let bundle_id = env::workflow_bundle_id()
             .map(dairy::String::from)
@@ -35,7 +37,7 @@ pub fn load<F>(key: &str, checksum: [u8; 20], f: F) -> Result<json::Value>
 where
     F: FnOnce() -> Result<json::Value>,
 {
-    let dir = CACHE_DIR.join(key);
+    let dir = DIR.join(key);
     let path = dir.join("data.json");
 
     match fs::read(&path) {
@@ -89,6 +91,7 @@ fn update<F>(dir: &Path, path: &Path, checksum: [u8; 20], f: F) -> Result<()>
 where
     F: FnOnce() -> Result<json::Value>,
 {
+    logger::init()?;
     if let Some(_guard) = fmutex::try_lock(dir)? {
         let data = f()?;
         let file = fs::File::create(path)?;

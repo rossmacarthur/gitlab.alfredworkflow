@@ -1,6 +1,7 @@
 mod cache;
 mod gitlab;
 mod human;
+mod logger;
 
 use std::env;
 
