@@ -6,25 +6,9 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json as json;
 
-use crate::Object;
+use crate::{Issue, MergeRequest};
 
 const GITLAB_TOKEN: &str = env!("GITLAB_TOKEN");
-
-struct Request {
-    name: &'static str,
-    query: &'static str,
-    checksum: [u8; 20],
-    ptr: &'static str,
-}
-
-fn try_lookup(value: &json::Value, ptr: &str) -> Result<String> {
-    Ok(value
-        .pointer(ptr)
-        .with_context(|| format!("failed to lookup `{}`", ptr))?
-        .as_str()
-        .context("not a string")?
-        .to_owned())
-}
 
 fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
     #[derive(Debug, Serialize)]
@@ -60,23 +44,19 @@ fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
     Ok(serde_json::from_slice(&buf)?)
 }
 
-fn fetch_and_parse(query: &Request) -> Result<Vec<Object>> {
-    let Request {
-        name,
-        query,
-        checksum,
-        ptr,
-    } = query;
-
-    let resp = crate::cache::load(name, *checksum, || fetch(query))?;
-    let value = resp
-        .pointer(ptr)
-        .with_context(|| format!("failed to lookup `{}` from `{:?}`", ptr, resp))?;
-    let nodes = value.as_array().context("expected array")?;
-    nodes.iter().map(parse_object).collect()
+fn fetch_and_parse<T>(
+    name: &str,
+    query: &str,
+    checksum: [u8; 20],
+    ptr: &str,
+    parse_fn: fn(json::Value) -> Result<T>,
+) -> Result<Vec<T>> {
+    let resp = crate::cache::load(name, checksum, || fetch(query))?;
+    let nodes: Vec<json::Value> = lookup(&resp, ptr)?;
+    nodes.into_iter().map(parse_fn).collect()
 }
 
-pub fn issues() -> Result<Vec<Object>> {
+pub fn issues() -> Result<Vec<Issue>> {
     const QUERY: &str = r#"
 query {
     project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
@@ -86,25 +66,35 @@ query {
                 author {
                     name
                 }
+                assignees {
+                    nodes {
+                        name
+                    }
+                }
                 createdAt
                 webUrl
+                labels {
+                    nodes {
+                        title
+                    }
+                }
             }
         }
     }
 }
 "#;
+    const CHECKSUM: [u8; 20] = checksum(QUERY);
 
-    const REQ: Request = Request {
-        name: "issues",
-        query: QUERY,
-        checksum: checksum(QUERY),
-        ptr: "/data/project/issues/nodes",
-    };
-
-    fetch_and_parse(&REQ)
+    fetch_and_parse(
+        "issues",
+        QUERY,
+        CHECKSUM,
+        "/data/project/issues/nodes",
+        parse_issue,
+    )
 }
 
-pub fn core() -> Result<Vec<Object>> {
+pub fn core() -> Result<Vec<MergeRequest>> {
     const QUERY: &str = r#"
 query {
     project(fullPath: "lunomoney/product-engineering/core") {
@@ -116,33 +106,75 @@ query {
                 }
                 createdAt
                 webUrl
+                labels {
+                    nodes {
+                        title
+                    }
+                }
             }
         }
     }
 }
 "#;
+    const CHECKSUM: [u8; 20] = checksum(QUERY);
 
-    const REQ: Request = Request {
-        name: "core",
-        query: QUERY,
-        checksum: checksum(QUERY),
-        ptr: "/data/project/mergeRequests/nodes",
-    };
-
-    fetch_and_parse(&REQ)
+    fetch_and_parse(
+        "core",
+        QUERY,
+        CHECKSUM,
+        "/data/project/mergeRequests/nodes",
+        parse_merge_request,
+    )
 }
 
-fn parse_object(value: &json::Value) -> Result<Object> {
-    let title = try_lookup(value, "/title")?;
-    let author = try_lookup(value, "/author/name")?;
-    let created_at: DateTime<chrono::Utc> = try_lookup(value, "/createdAt")?.parse()?;
-    let url = try_lookup(value, "/webUrl")?;
-    Ok(Object {
+fn parse_issue(value: json::Value) -> Result<Issue> {
+    let title = lookup(&value, "/title")?;
+    let author = lookup(&value, "/author/name")?;
+    let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
+    let url = lookup(&value, "/webUrl")?;
+    let labels = lookup_list(&value, "/labels/nodes", "/title")?;
+    let assignees = lookup_list(&value, "/assignees/nodes", "/name")?;
+    Ok(Issue {
+        title,
+        url,
+        author,
+        assignees,
+        created_at,
+        labels,
+    })
+}
+
+fn parse_merge_request(value: json::Value) -> Result<MergeRequest> {
+    let title = lookup(&value, "/title")?;
+    let author = lookup(&value, "/author/name")?;
+    let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
+    let url = lookup(&value, "/webUrl")?;
+    let labels = lookup_list(&value, "/labels/nodes", "/title")?;
+    Ok(MergeRequest {
         title,
         url,
         author,
         created_at,
+        labels,
     })
+}
+
+fn lookup<T>(value: &json::Value, ptr: &str) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    let v = value
+        .pointer(ptr)
+        .with_context(|| format!("failed to lookup `{}`", ptr))?;
+    Ok(json::from_value(v.clone())?)
+}
+
+fn lookup_list<T>(value: &json::Value, ptr: &str, sub_ptr: &str) -> Result<Vec<T>>
+where
+    T: DeserializeOwned,
+{
+    let list: Vec<json::Value> = lookup(value, ptr)?;
+    list.into_iter().map(|v| lookup(&v, sub_ptr)).collect()
 }
 
 /// Compile time checksum of the given string.
