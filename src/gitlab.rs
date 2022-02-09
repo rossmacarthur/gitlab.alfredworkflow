@@ -1,4 +1,3 @@
-use std::env;
 use std::io::prelude::*;
 
 use anyhow::{Context, Result};
@@ -10,6 +9,13 @@ use serde_json as json;
 use crate::Object;
 
 const GITLAB_TOKEN: &str = env!("GITLAB_TOKEN");
+
+struct Request {
+    name: &'static str,
+    query: &'static str,
+    checksum: [u8; 20],
+    ptr: &'static str,
+}
 
 fn try_lookup(value: &json::Value, ptr: &str) -> Result<String> {
     Ok(value
@@ -54,40 +60,52 @@ fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
     Ok(serde_json::from_slice(&buf)?)
 }
 
-fn fetch_and_parse<T, F>(query: &str, ptr: &str, parse: F) -> Result<Vec<T>>
-where
-    F: Fn(&json::Value) -> Result<T>,
-{
-    let resp: json::Value = fetch(query)?;
+fn fetch_and_parse(query: &Request) -> Result<Vec<Object>> {
+    let Request {
+        name,
+        query,
+        checksum,
+        ptr,
+    } = query;
+
+    let resp = crate::cache::load(name, *checksum, || fetch(query))?;
     let value = resp
         .pointer(ptr)
         .with_context(|| format!("failed to lookup `{}` from `{:?}`", ptr, resp))?;
     let nodes = value.as_array().context("expected array")?;
-    nodes.iter().map(parse).collect()
+    nodes.iter().map(parse_object).collect()
 }
 
 pub fn issues() -> Result<Vec<Object>> {
-    let query = r#"
-    query {
-        project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
-            issues(state: opened) {
-                nodes {
-                    title
-                    author {
-                        name
-                    }
-                    createdAt
-                    webUrl
+    const QUERY: &str = r#"
+query {
+    project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
+        issues(state: opened) {
+            nodes {
+                title
+                author {
+                    name
                 }
+                createdAt
+                webUrl
             }
         }
     }
-    "#;
-    fetch_and_parse(query, "/data/project/issues/nodes", parse_object)
+}
+"#;
+
+    const REQ: Request = Request {
+        name: "issues",
+        query: QUERY,
+        checksum: checksum(QUERY),
+        ptr: "/data/project/issues/nodes",
+    };
+
+    fetch_and_parse(&REQ)
 }
 
 pub fn core() -> Result<Vec<Object>> {
-    let query = r#"
+    const QUERY: &str = r#"
 query {
     project(fullPath: "lunomoney/product-engineering/core") {
         mergeRequests(state: opened) {
@@ -103,7 +121,15 @@ query {
     }
 }
 "#;
-    fetch_and_parse(query, "/data/project/mergeRequests/nodes", parse_object)
+
+    const REQ: Request = Request {
+        name: "core",
+        query: QUERY,
+        checksum: checksum(QUERY),
+        ptr: "/data/project/mergeRequests/nodes",
+    };
+
+    fetch_and_parse(&REQ)
 }
 
 fn parse_object(value: &json::Value) -> Result<Object> {
@@ -117,4 +143,10 @@ fn parse_object(value: &json::Value) -> Result<Object> {
         author,
         created_at,
     })
+}
+
+/// Compile time checksum of the given string.
+const fn checksum(query: &str) -> [u8; 20] {
+    use const_sha1::*;
+    sha1(&ConstBuffer::from_slice(query.as_bytes())).bytes()
 }
