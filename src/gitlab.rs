@@ -1,20 +1,24 @@
 use std::io::prelude::*;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::DateTime;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json as json;
 
+use crate::config::CONFIG;
 use crate::{Issue, MergeRequest};
-
-const GITLAB_TOKEN: &str = env!("GITLAB_TOKEN");
 
 fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
     #[derive(Debug, Serialize)]
     struct Query<'a> {
         query: &'a str,
     }
+
+    let token = CONFIG
+        .token
+        .as_ref()
+        .ok_or_else(|| anyhow!("GITLAB_TOKEN environment variable is not set!"))?;
 
     let mut buf = Vec::new();
     let mut easy = curl::easy::Easy::new();
@@ -24,7 +28,7 @@ fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
     easy.follow_location(true)?;
     easy.http_headers({
         let mut hl = curl::easy::List::new();
-        hl.append(&format!("Authorization: Bearer {}", GITLAB_TOKEN))?;
+        hl.append(&format!("Authorization: Bearer {}", token))?;
         hl.append("Content-Type: application/json")?;
         hl
     })?;
@@ -56,13 +60,12 @@ fn fetch_and_parse<T>(
     nodes.into_iter().map(parse_fn).collect()
 }
 
-pub fn issues() -> Result<Vec<Issue>> {
-    const QUERY: &str = r#"
+pub fn issues(name: &str, project: &str) -> Result<Vec<Issue>> {
+    let query = r#"
 query {
-    project(fullPath: "lunomoney/product-engineering/pods/connect-us/work") {
+    project(fullPath: "<project>") {
         issues(state: opened) {
             nodes {
-                iid
                 title
                 author {
                     name
@@ -83,25 +86,19 @@ query {
         }
     }
 }
-"#;
-    const CHECKSUM: [u8; 20] = checksum(QUERY);
-
-    fetch_and_parse(
-        "issues",
-        QUERY,
-        CHECKSUM,
-        "/data/project/issues/nodes",
-        parse_issue,
-    )
+"#
+    .replace("<project>", project);
+    let ptr = "/data/project/issues/nodes";
+    let checksum = checksum(&query);
+    fetch_and_parse(name, &query, checksum, ptr, parse_issue)
 }
 
-pub fn core() -> Result<Vec<MergeRequest>> {
-    const QUERY: &str = r#"
+pub fn merge_requests(name: &str, project: &str) -> Result<Vec<MergeRequest>> {
+    let query = r#"
 query {
-    project(fullPath: "lunomoney/product-engineering/core") {
+    project(fullPath: "<project>") {
         mergeRequests(state: opened) {
             nodes {
-                iid
                 title
                 author {
                     name
@@ -117,16 +114,11 @@ query {
         }
     }
 }
-"#;
-    const CHECKSUM: [u8; 20] = checksum(QUERY);
-
-    fetch_and_parse(
-        "core",
-        QUERY,
-        CHECKSUM,
-        "/data/project/mergeRequests/nodes",
-        parse_merge_request,
-    )
+"#
+    .replace("<project>", project);
+    let ptr = "/data/project/mergeRequests/nodes";
+    let checksum = checksum(&query);
+    fetch_and_parse(name, &query, checksum, ptr, parse_merge_request)
 }
 
 fn parse_issue(value: json::Value) -> Result<Issue> {
@@ -138,7 +130,6 @@ fn parse_issue(value: json::Value) -> Result<Issue> {
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
     let assignees = lookup_list(&value, "/assignees/nodes", "/name")?;
     Ok(Issue {
-        id,
         title,
         url,
         author,
@@ -156,7 +147,6 @@ fn parse_merge_request(value: json::Value) -> Result<MergeRequest> {
     let url = lookup(&value, "/webUrl")?;
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
     Ok(MergeRequest {
-        id,
         title,
         url,
         author,
@@ -183,8 +173,9 @@ where
     list.into_iter().map(|v| lookup(&v, sub_ptr)).collect()
 }
 
-/// Compile time checksum of the given string.
-const fn checksum(query: &str) -> [u8; 20] {
-    use const_sha1::*;
-    sha1(&ConstBuffer::from_slice(query.as_bytes())).bytes()
+fn checksum(query: &str) -> [u8; 20] {
+    use sha1::*;
+    let mut hasher = Sha1::new();
+    hasher.update(query.as_bytes());
+    hasher.finalize().try_into().unwrap()
 }

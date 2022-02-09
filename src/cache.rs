@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{anyhow, Result};
@@ -69,16 +70,12 @@ where
             let start = Instant::now();
             let poll_duration = Duration::from_secs(5);
             while Instant::now().duration_since(start) < poll_duration {
-                match fs::read(&path) {
-                    Ok(data) => {
-                        let curr: Cache = json::from_slice(&data)?;
-                        return Ok(curr.data);
-                    }
-                    Err(err) if err.kind() == io::ErrorKind::NotFound => {}
-                    Err(err) => return Err(err.into()),
+                thread::sleep(Duration::from_millis(200));
+                if let Ok(data) = fs::read(&path) {
+                    let curr: Cache = json::from_slice(&data)?;
+                    return Ok(curr.data);
                 }
             }
-
             Err(anyhow!("timeout waiting for cached data"))
         }
         Err(err) => Err(err.into()),
