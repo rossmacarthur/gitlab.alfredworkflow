@@ -18,6 +18,16 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>35AAF894-F71F-43FD-A6FD-4771B451B4FC</string>
+				<key>modifiers</key>
+				<integer>131072</integer>
+				<key>modifiersubtext</key>
+				<string>Copy URL to clipboard →</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 		</array>
 	</dict>
 	<key>createdby</key>
@@ -30,6 +40,25 @@
 	<string>gitlab</string>
 	<key>objects</key>
 	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string>com.google.Chrome</string>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+				<key>utf8</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>98E066C9-5876-41F8-9DB8-85A519F65996</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 		<dict>
 			<key>config</key>
 			<dict>
@@ -82,40 +111,64 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>browser</key>
-				<string>com.google.Chrome</string>
-				<key>spaces</key>
-				<string></string>
-				<key>url</key>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
 				<string>{query}</string>
-				<key>utf8</key>
-				<true/>
+				<key>ignoredynamicplaceholders</key>
+				<false/>
+				<key>transient</key>
+				<false/>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.action.openurl</string>
+			<string>alfred.workflow.output.clipboard</string>
 			<key>uid</key>
-			<string>98E066C9-5876-41F8-9DB8-85A519F65996</string>
+			<string>35AAF894-F71F-43FD-A6FD-4771B451B4FC</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>3</integer>
 		</dict>
 	</array>
+	<key>readme</key>
+	<string></string>
 	<key>uidata</key>
 	<dict>
+		<key>35AAF894-F71F-43FD-A6FD-4771B451B4FC</key>
+		<dict>
+			<key>xpos</key>
+			<integer>230</integer>
+			<key>ypos</key>
+			<integer>175</integer>
+		</dict>
 		<key>98E066C9-5876-41F8-9DB8-85A519F65996</key>
 		<dict>
 			<key>xpos</key>
 			<integer>230</integer>
 			<key>ypos</key>
-			<integer>50</integer>
+			<integer>25</integer>
 		</dict>
 		<key>F18920EB-F39D-4933-909C-1DF2DE57AB4C</key>
 		<dict>
 			<key>xpos</key>
 			<integer>50</integer>
 			<key>ypos</key>
-			<integer>50</integer>
+			<integer>100</integer>
 		</dict>
 	</dict>
+	<key>variables</key>
+	<dict>
+		<key>GITLAB_ISSUES_ISSUES</key>
+		<string>*project-path here*</string>
+		<key>GITLAB_MERGE_REQUESTS_REPO</key>
+		<string>*project-path here*</string>
+		<key>GITLAB_TOKEN</key>
+		<string></string>
+	</dict>
+	<key>variablesdontexport</key>
+	<array>
+		<string>GITLAB_TOKEN</string>
+	</array>
+	<key>version</key>
+	<string>0.0.0</string>
 	<key>webaddress</key>
 	<string></string>
 </dict>

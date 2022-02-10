@@ -122,7 +122,6 @@ query {
 }
 
 fn parse_issue(value: json::Value) -> Result<Issue> {
-    let id = lookup(&value, "/iid")?;
     let title = lookup(&value, "/title")?;
     let author = lookup(&value, "/author/name")?;
     let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
@@ -140,7 +139,6 @@ fn parse_issue(value: json::Value) -> Result<Issue> {
 }
 
 fn parse_merge_request(value: json::Value) -> Result<MergeRequest> {
-    let id = lookup(&value, "/iid")?;
     let title = lookup(&value, "/title")?;
     let author = lookup(&value, "/author/name")?;
     let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;

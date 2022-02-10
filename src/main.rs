@@ -37,20 +37,12 @@ impl Issue {
             if let Some(q) = q.strip_prefix('~') {
                 self.labels
                     .iter()
-                    .any(|label| label.to_ascii_lowercase().contains(q))
-            } else if let Some(q) = q.strip_prefix('!') {
-                !self
-                    .labels
-                    .iter()
-                    .any(|label| label.to_ascii_lowercase().contains(q))
+                    .any(|label| label.to_lowercase().contains(q))
             } else if let Some(q) = q.strip_prefix('@') {
-                self.author.to_ascii_lowercase().contains(q)
-                    || self
-                        .assignees
-                        .iter()
-                        .any(|a| a.to_ascii_lowercase().contains(q))
+                self.author.to_lowercase().contains(q)
+                    || self.assignees.iter().any(|a| a.to_lowercase().contains(q))
             } else {
-                self.title.to_ascii_lowercase().contains(q)
+                self.title.to_lowercase().contains(q)
             }
         })
     }
@@ -74,16 +66,11 @@ impl MergeRequest {
             if let Some(q) = q.strip_prefix('~') {
                 self.labels
                     .iter()
-                    .any(|label| label.to_ascii_lowercase().contains(q))
-            } else if let Some(q) = q.strip_prefix('!') {
-                !self
-                    .labels
-                    .iter()
-                    .any(|label| label.to_ascii_lowercase().contains(q))
+                    .any(|label| label.to_lowercase().contains(q))
             } else if let Some(q) = q.strip_prefix('@') {
-                self.author.to_ascii_lowercase().contains(q)
+                self.author.to_lowercase().contains(q)
             } else {
-                self.title.to_ascii_lowercase().contains(q)
+                self.title.to_lowercase().contains(q)
             }
         })
     }
@@ -131,7 +118,7 @@ fn run() -> Result<()> {
         .nth(1)
         .as_deref()
         .map(str::trim)
-        .map(str::to_ascii_lowercase);
+        .map(str::to_lowercase);
 
     let items = match arg {
         // If no argument is given then just list the available commands.
