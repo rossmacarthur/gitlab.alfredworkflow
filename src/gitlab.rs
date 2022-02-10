@@ -9,16 +9,11 @@ use serde_json as json;
 use crate::config::CONFIG;
 use crate::{Issue, MergeRequest};
 
-fn fetch<T: DeserializeOwned>(query: &str) -> Result<T> {
+fn fetch<T: DeserializeOwned>(query: &str, token: &str) -> Result<T> {
     #[derive(Debug, Serialize)]
     struct Query<'a> {
         query: &'a str,
     }
-
-    let token = CONFIG
-        .token
-        .as_ref()
-        .ok_or_else(|| anyhow!("GITLAB_TOKEN environment variable is not set!"))?;
 
     let mut buf = Vec::new();
     let mut easy = curl::easy::Easy::new();
@@ -55,7 +50,11 @@ fn fetch_and_parse<T>(
     ptr: &str,
     parse_fn: fn(json::Value) -> Result<T>,
 ) -> Result<Vec<T>> {
-    let resp = crate::cache::load(name, checksum, || fetch(query))?;
+    let token = CONFIG
+        .token
+        .as_ref()
+        .ok_or_else(|| anyhow!("GITLAB_TOKEN environment variable is not set!"))?;
+    let resp = crate::cache::load(name, checksum, || fetch(query, token))?;
     let nodes: Vec<json::Value> = lookup(&resp, ptr)?;
     nodes.into_iter().map(parse_fn).collect()
 }
