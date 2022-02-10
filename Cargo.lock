@@ -253,7 +253,9 @@ checksum = "58893f751c9b0412871a09abd62ecd2a00298c6c83befa223ef98c52aef40cbe"
 
 [[package]]
 name = "powerpack"
-version = "0.3.0"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e299b3aed251a9057e3d3ceb68ee205907b822f5af1b33ad1103ad915f0aa90"
 dependencies = [
  "dairy",
  "powerpack-detach",
@@ -263,7 +265,9 @@ dependencies = [
 
 [[package]]
 name = "powerpack-detach"
-version = "0.3.0"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bac2253d0d1a106193b7057720e8428208a0cca0535d6bcc4f4f66ba030a0725"
 dependencies = [
  "libc",
  "log",
