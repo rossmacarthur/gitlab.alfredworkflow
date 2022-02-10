@@ -92,6 +92,7 @@ impl Command {
         };
         Item::new(&self.name)
             .subtitle(subtitle)
+            .arg(format!("https://gitlab.com/{}", self.project))
             .autocomplete(format!("{} ", self.name))
     }
 
