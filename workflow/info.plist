@@ -129,7 +129,28 @@
 		</dict>
 	</array>
 	<key>readme</key>
-	<string></string>
+	<string># Configuration
+
+## Authentication
+
+You will need to add a `GITLAB_TOKEN` environment variable which you can create
+using [this link](https://gitlab.com/-/profile/personal_access_tokens?name=gitlab.alfredworkflow&amp;scopes=read_api).
+It only needs the `read_api` permission.
+
+## Commands
+
+Any environment variable prefixed with `GITLAB_ISSUES_` or
+`GITLAB_MERGE_REQUESTS_` defines a workflow command that will list the issues
+or merge requests for the provided project respectively. The name of the command
+should follow the prefix. For example to get the command to list issues on the
+iTerm2 repository like in the screenshot above you would set the following
+environment variable.
+
+| Name                 | Value           |
+| -------------------- | --------------- |
+| GITLAB_ISSUES_ITERM2 | gnachman/iterm2 |
+
+You can specify as many commands as you want.</string>
 	<key>uidata</key>
 	<dict>
 		<key>35AAF894-F71F-43FD-A6FD-4771B451B4FC</key>
@@ -170,6 +191,6 @@
 	<key>version</key>
 	<string>0.0.0</string>
 	<key>webaddress</key>
-	<string></string>
+	<string>https://github.com/rossmacarthur/gitlab.alfredworkflow</string>
 </dict>
 </plist>
