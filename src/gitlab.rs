@@ -69,10 +69,12 @@ query {
                 title
                 author {
                     name
+                    username
                 }
                 assignees {
                     nodes {
                         name
+                        username
                     }
                 }
                 createdAt
@@ -102,6 +104,7 @@ query {
                 title
                 author {
                     name
+                    username
                 }
                 createdAt
                 webUrl
@@ -123,11 +126,11 @@ query {
 
 fn parse_issue(value: json::Value) -> Result<Issue> {
     let title = lookup(&value, "/title")?;
-    let author = lookup(&value, "/author/name")?;
+    let author = lookup(&value, "/author")?;
     let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
     let url = lookup(&value, "/webUrl")?;
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
-    let assignees = lookup_list(&value, "/assignees/nodes", "/name")?;
+    let assignees = lookup_list(&value, "/assignees/nodes", "")?;
     Ok(Issue {
         title,
         url,
@@ -140,7 +143,7 @@ fn parse_issue(value: json::Value) -> Result<Issue> {
 
 fn parse_merge_request(value: json::Value) -> Result<MergeRequest> {
     let title = lookup(&value, "/title")?;
-    let author = lookup(&value, "/author/name")?;
+    let author = lookup(&value, "/author")?;
     let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
     let url = lookup(&value, "/webUrl")?;
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;

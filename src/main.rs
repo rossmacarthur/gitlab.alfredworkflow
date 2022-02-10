@@ -9,14 +9,15 @@ use std::{env, iter};
 use anyhow::Result;
 use chrono::DateTime;
 use powerpack::Item;
+use serde::Deserialize;
 
 use crate::config::{Command, Kind, CONFIG};
 
 #[derive(Debug)]
 pub struct Issue {
     title: String,
-    author: String,
-    assignees: Vec<String>,
+    author: User,
+    assignees: Vec<User>,
     url: String,
     created_at: DateTime<chrono::Utc>,
     labels: Vec<String>,
@@ -25,10 +26,16 @@ pub struct Issue {
 #[derive(Debug)]
 pub struct MergeRequest {
     title: String,
-    author: String,
+    author: User,
     url: String,
     created_at: DateTime<chrono::Utc>,
     labels: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct User {
+    name: String,
+    username: String,
 }
 
 impl Issue {
@@ -39,8 +46,7 @@ impl Issue {
                     .iter()
                     .any(|label| label.to_lowercase().contains(q))
             } else if let Some(q) = q.strip_prefix('@') {
-                self.author.to_lowercase().contains(q)
-                    || self.assignees.iter().any(|a| a.to_lowercase().contains(q))
+                self.author.matches(q) || self.assignees.iter().any(|a| a.matches(q))
             } else {
                 self.title.to_lowercase().contains(q)
             }
@@ -50,9 +56,17 @@ impl Issue {
     fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item<'static> {
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
         let subtitle = if self.assignees.is_empty() {
-            format!("{}, authored by {}", ago, self.author)
+            format!("{}, authored by {}", ago, self.author.name)
         } else {
-            format!("{}, assigned to {}", ago, self.assignees.join(", "))
+            format!(
+                "{}, assigned to {}",
+                ago,
+                self.assignees
+                    .iter()
+                    .map(|u| u.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         };
         powerpack::Item::new(self.title)
             .subtitle(subtitle)
@@ -68,7 +82,7 @@ impl MergeRequest {
                     .iter()
                     .any(|label| label.to_lowercase().contains(q))
             } else if let Some(q) = q.strip_prefix('@') {
-                self.author.to_lowercase().contains(q)
+                self.author.matches(q)
             } else {
                 self.title.to_lowercase().contains(q)
             }
@@ -77,10 +91,16 @@ impl MergeRequest {
 
     fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item<'static> {
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
-        let subtitle = format!("{} by {}", ago, self.author);
+        let subtitle = format!("{} by {}", ago, self.author.name);
         powerpack::Item::new(self.title)
             .subtitle(subtitle)
             .arg(self.url)
+    }
+}
+
+impl User {
+    fn matches(&self, query: &str) -> bool {
+        self.name.to_lowercase().contains(query) || self.username.to_lowercase().contains(query)
     }
 }
 
