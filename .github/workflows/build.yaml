@@ -1,0 +1,89 @@
+name: build
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: --deny warnings
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        toolchain: [stable, beta, nightly]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Rust
+      run: |
+        rustup set profile default
+        rustup toolchain install ${{ matrix.toolchain }}
+        rustup override set ${{ matrix.toolchain }}
+
+    - name: Rustfmt
+      run: cargo fmt -- --check
+
+    - name: Clippy
+      run: cargo clippy --workspace --all-targets
+
+  check-version:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Calculate version from tag
+        id: version
+        run: echo "::set-output name=value::${GITHUB_REF#refs/tags/}"
+
+      - name: Check tag against package version
+        run: grep '^version = "${{ steps.version.outputs.value }}"$' Cargo.toml
+
+  release:
+    needs: check-version
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: extractions/setup-crate@v1
+        with:
+          owner: rossmacarthur
+          name: powerpack
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Rust
+        run: |
+          rustup set profile minimal
+          rustup toolchain install stable
+          rustup override set stable
+          rustup target add ${{ matrix.target }}
+
+      - name: Calculate version from tag
+        id: version
+        run: echo "::set-output name=value::${GITHUB_REF#refs/tags/}"
+
+      - name: Archive
+        id: archive
+        run: |
+          archive=gitlab-${{ steps.version.outputs.value }}-${{ matrix.target }}.alfredworkflow
+          powerpack package --target ${{ matrix.target }}
+          mv target/workflow/gitlab.alfredworkflow "$archive"
+          echo "::set-output name=path::$archive"
+
+      - uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: ${{ steps.archive.outputs.path }}

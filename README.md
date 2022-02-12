@@ -1,5 +1,8 @@
 # gitlab.alfredworkflow
 
+[![Build status](https://img.shields.io/github/workflow/status/rossmacarthur/gitlab.alfredworkflow/build/trunk)](https://github.com/rossmacarthur/gitlab.alfredworkflow/actions?query=workflow%3Abuild)
+[![Latest release](https://img.shields.io/github/v/release/rossmacarthur/gitlab.alfredworkflow)](https://github.com/rossmacarthur/gitlab.alfredworkflow/releases/latest)
+
 🦊 Alfred workflow to search GitLab issues and merge requests.
 
 <img width="605" alt="Screenshot" src="https://user-images.githubusercontent.com/17109887/153414450-8134d7d6-4b6f-488c-8353-0882a2c100c3.png">

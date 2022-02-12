@@ -36,13 +36,13 @@ impl Config {
             } else if let Some(name) = k.strip_prefix("GITLAB_ISSUES_") {
                 commands.push(Command {
                     kind: Kind::Issues,
-                    name: name.to_lowercase().replace("_", "-"),
+                    name: name.to_lowercase().replace('_', "-"),
                     project: v,
                 })
             } else if let Some(name) = k.strip_prefix("GITLAB_MERGE_REQUESTS_") {
                 commands.push(Command {
                     kind: Kind::MergeRequests,
-                    name: name.to_lowercase().replace("_", "-"),
+                    name: name.to_lowercase().replace('_', "-"),
                     project: v,
                 })
             }
