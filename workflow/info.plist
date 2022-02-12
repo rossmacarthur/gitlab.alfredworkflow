@@ -6,7 +6,7 @@
 	<string>io.macarthur.ross.gitlab</string>
 	<key>connections</key>
 	<dict>
-		<key>F18920EB-F39D-4933-909C-1DF2DE57AB4C</key>
+		<key>01FFC1DC-2C91-4DE3-897C-31DEC148F541</key>
 		<array>
 			<dict>
 				<key>destinationuid</key>
@@ -18,13 +18,26 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+		</array>
+		<key>F18920EB-F39D-4933-909C-1DF2DE57AB4C</key>
+		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>35AAF894-F71F-43FD-A6FD-4771B451B4FC</string>
+				<string>01FFC1DC-2C91-4DE3-897C-31DEC148F541</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>E4DE5FBA-2ECB-4A8F-A32C-B602AF9D01AB</string>
 				<key>modifiers</key>
 				<integer>131072</integer>
 				<key>modifiersubtext</key>
-				<string>Copy URL to clipboard →</string>
+				<string>Copy rich text URL to clipboard →</string>
 				<key>vitoclose</key>
 				<false/>
 			</dict>
@@ -44,11 +57,11 @@
 			<key>config</key>
 			<dict>
 				<key>browser</key>
-				<string>com.google.Chrome</string>
+				<string></string>
 				<key>spaces</key>
 				<string></string>
 				<key>url</key>
-				<string>{query}</string>
+				<string>{var:split1}</string>
 				<key>utf8</key>
 				<true/>
 			</dict>
@@ -56,6 +69,23 @@
 			<string>alfred.workflow.action.openurl</string>
 			<key>uid</key>
 			<string>98E066C9-5876-41F8-9DB8-85A519F65996</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>delimiter</key>
+				<string>;</string>
+				<key>trimarguments</key>
+				<true/>
+				<key>variableprefix</key>
+				<string>split</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.split</string>
+			<key>uid</key>
+			<string>01FFC1DC-2C91-4DE3-897C-31DEC148F541</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -111,21 +141,29 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>autopaste</key>
+				<key>concurrently</key>
 				<false/>
-				<key>clipboardtext</key>
-				<string>{query}</string>
-				<key>ignoredynamicplaceholders</key>
-				<false/>
-				<key>transient</key>
-				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>IFS=';' read -r url title &lt;&lt;&lt; "$1"
+echo "&lt;a href="$url"&gt;$title&lt;/a&gt;" |\
+	hexdump -ve '1/1 "%.2x"' |\
+	xargs printf "set the clipboard to {text:\"$url\", «class HTML»:«data HTML%s»}" |\
+	osascript</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.output.clipboard</string>
+			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
-			<string>35AAF894-F71F-43FD-A6FD-4771B451B4FC</string>
+			<string>E4DE5FBA-2ECB-4A8F-A32C-B602AF9D01AB</string>
 			<key>version</key>
-			<integer>3</integer>
+			<integer>2</integer>
 		</dict>
 	</array>
 	<key>readme</key>
@@ -153,19 +191,26 @@ environment variable.
 You can specify as many commands as you want.</string>
 	<key>uidata</key>
 	<dict>
-		<key>35AAF894-F71F-43FD-A6FD-4771B451B4FC</key>
+		<key>01FFC1DC-2C91-4DE3-897C-31DEC148F541</key>
 		<dict>
 			<key>xpos</key>
-			<integer>230</integer>
+			<integer>250</integer>
 			<key>ypos</key>
-			<integer>175</integer>
+			<integer>50</integer>
 		</dict>
 		<key>98E066C9-5876-41F8-9DB8-85A519F65996</key>
 		<dict>
 			<key>xpos</key>
-			<integer>230</integer>
+			<integer>350</integer>
 			<key>ypos</key>
-			<integer>25</integer>
+			<integer>20</integer>
+		</dict>
+		<key>E4DE5FBA-2ECB-4A8F-A32C-B602AF9D01AB</key>
+		<dict>
+			<key>xpos</key>
+			<integer>350</integer>
+			<key>ypos</key>
+			<integer>155</integer>
 		</dict>
 		<key>F18920EB-F39D-4933-909C-1DF2DE57AB4C</key>
 		<dict>

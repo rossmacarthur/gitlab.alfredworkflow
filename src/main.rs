@@ -4,7 +4,8 @@ mod gitlab;
 mod human;
 mod logger;
 
-use std::{env, iter};
+use std::env;
+use std::iter;
 
 use anyhow::Result;
 use chrono::DateTime;
@@ -68,9 +69,8 @@ impl Issue {
                     .join(", ")
             )
         };
-        powerpack::Item::new(self.title)
-            .subtitle(subtitle)
-            .arg(self.url)
+        let arg = format!("{};{}", &self.url, &self.title);
+        powerpack::Item::new(self.title).subtitle(subtitle).arg(arg)
     }
 }
 
@@ -92,9 +92,8 @@ impl MergeRequest {
     fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item<'static> {
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
         let subtitle = format!("{} by {}", ago, self.author.name);
-        powerpack::Item::new(self.title)
-            .subtitle(subtitle)
-            .arg(self.url)
+        let arg = format!("{};{}", &self.url, &self.title);
+        powerpack::Item::new(self.title).subtitle(subtitle).arg(arg)
     }
 }
 
@@ -112,7 +111,7 @@ impl Command {
         };
         Item::new(&self.name)
             .subtitle(subtitle)
-            .arg(format!("https://gitlab.com/{}", self.project))
+            .arg(format!("https://gitlab.com/{};{}", self.project, self.name))
             .autocomplete(format!("{} ", self.name))
     }
 
