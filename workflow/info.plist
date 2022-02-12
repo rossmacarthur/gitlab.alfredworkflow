@@ -234,7 +234,7 @@ You can specify as many commands as you want.</string>
 		<string>GITLAB_TOKEN</string>
 	</array>
 	<key>version</key>
-	<string>0.0.0</string>
+	<string>0.1.0</string>
 	<key>webaddress</key>
 	<string>https://github.com/rossmacarthur/gitlab.alfredworkflow</string>
 </dict>
