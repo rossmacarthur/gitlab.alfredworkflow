@@ -5,16 +5,16 @@
 
 🦊 Alfred workflow to search GitLab issues and merge requests.
 
-<img width="605" alt="Screenshot" src="https://user-images.githubusercontent.com/17109887/153414450-8134d7d6-4b6f-488c-8353-0882a2c100c3.png">
+<img width="550" alt="Screenshot" src="https://user-images.githubusercontent.com/17109887/153414450-8134d7d6-4b6f-488c-8353-0882a2c100c3.png">
 
 ## Features
 
-- Uses the GitLab GraphQL API to list issues and merge requests for a project.
-  - Open the issue or merge request in your browser.
-  - Use **⇧** to instead copy the URL to clipboard.
-- Configure as many projects as you want.
-- Caching of API requests for responsiveness.
-- Blazingly fast 🤸 (it's built in Rust 🦀).
+- Configure as many projects as you want under a custom command.
+- Open the selected issue or merge request in your browser.
+- Filter by label by prefixing your search with `~`.
+- Filter by author by prefixing your search with `@`.
+- Use **⇧** to instead copy the rich text URL to clipboard.
+- Blazingly fast 🤸.
 
 ## 📦 Installation
 
