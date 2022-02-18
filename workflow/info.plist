@@ -188,7 +188,10 @@ environment variable.
 | -------------------- | --------------- |
 | GITLAB_ISSUES_ITERM2 | gnachman/iterm2 |
 
-You can specify as many commands as you want.</string>
+You can specify as many commands as you want.
+
+`GITLAB_USER` can be specified to order issues and merge requests by that user
+first.</string>
 	<key>uidata</key>
 	<dict>
 		<key>01FFC1DC-2C91-4DE3-897C-31DEC148F541</key>
@@ -227,6 +230,8 @@ You can specify as many commands as you want.</string>
 		<key>GITLAB_MERGE_REQUESTS_REPO</key>
 		<string>*project-path here*</string>
 		<key>GITLAB_TOKEN</key>
+		<string></string>
+		<key>GITLAB_USER</key>
 		<string></string>
 	</dict>
 	<key>variablesdontexport</key>

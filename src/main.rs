@@ -4,6 +4,7 @@ mod gitlab;
 mod human;
 mod logger;
 
+use std::cmp::Reverse;
 use std::env;
 use std::iter;
 
@@ -40,6 +41,20 @@ pub struct User {
 }
 
 impl Issue {
+    fn ours_first(&self) -> Reverse<(bool, bool)> {
+        let is_ours = CONFIG
+            .user
+            .as_ref()
+            .map(|u| {
+                (
+                    self.author.matches(u),
+                    self.assignees.iter().any(|a| a.matches(u)),
+                )
+            })
+            .unwrap_or((false, false));
+        Reverse(is_ours)
+    }
+
     fn matches(&self, query: &str) -> bool {
         query.split_whitespace().all(|q| {
             if let Some(q) = q.strip_prefix('~') {
@@ -75,6 +90,15 @@ impl Issue {
 }
 
 impl MergeRequest {
+    fn ours_first(&self) -> Reverse<bool> {
+        let is_ours = CONFIG
+            .user
+            .as_ref()
+            .map(|u| self.author.matches(u))
+            .unwrap_or(false);
+        Reverse(is_ours)
+    }
+
     fn matches(&self, query: &str) -> bool {
         query.split_whitespace().all(|q| {
             if let Some(q) = q.strip_prefix('~') {
@@ -119,14 +143,22 @@ impl Command {
         let now = chrono::Utc::now();
 
         let items = match self.kind {
-            Kind::Issues => gitlab::issues(&self.name, &self.project)?
-                .into_iter()
-                .filter_map(|i| i.matches(query).then(|| i.into_item(now)))
-                .collect(),
-            Kind::MergeRequests => gitlab::merge_requests(&self.name, &self.project)?
-                .into_iter()
-                .filter_map(|m| m.matches(query).then(|| m.into_item(now)))
-                .collect(),
+            Kind::Issues => {
+                let mut issues = gitlab::issues(&self.name, &self.project)?;
+                issues.sort_by_key(Issue::ours_first);
+                issues
+                    .into_iter()
+                    .filter_map(|i| i.matches(query).then(|| i.into_item(now)))
+                    .collect()
+            }
+            Kind::MergeRequests => {
+                let mut merge_requests = gitlab::merge_requests(&self.name, &self.project)?;
+                merge_requests.sort_by_key(MergeRequest::ours_first);
+                merge_requests
+                    .into_iter()
+                    .filter_map(|m| m.matches(query).then(|| m.into_item(now)))
+                    .collect()
+            }
         };
 
         Ok(items)

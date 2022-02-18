@@ -7,6 +7,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
 #[derive(Debug)]
 pub struct Config {
     pub token: Option<String>,
+    pub user: Option<String>,
     pub commands: Vec<Command>,
 }
 
@@ -26,12 +27,15 @@ pub enum Kind {
 impl Config {
     fn load() -> Self {
         let mut token = None;
+        let mut user = None;
         let mut commands = Vec::new();
         for (k, v) in env::vars() {
             if v.is_empty() {
                 continue;
             }
-            if k == "GITLAB_TOKEN" {
+            if k == "GITLAB_USER" {
+                user = Some(v)
+            } else if k == "GITLAB_TOKEN" {
                 token = Some(v);
             } else if let Some(name) = k.strip_prefix("GITLAB_ISSUES_") {
                 commands.push(Command {
@@ -47,6 +51,10 @@ impl Config {
                 })
             }
         }
-        Config { token, commands }
+        Config {
+            token,
+            user,
+            commands,
+        }
     }
 }
