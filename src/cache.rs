@@ -13,7 +13,7 @@ use serde_json as json;
 
 use crate::logger;
 
-const UPDATE_INTERVAL: Duration = Duration::from_secs(60);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(15);
 
 pub static DIR: Lazy<PathBuf> = Lazy::new(|| {
     env::workflow_cache().unwrap_or_else(|| {
