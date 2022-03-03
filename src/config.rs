@@ -8,6 +8,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
 pub struct Config {
     pub token: Option<String>,
     pub user: Option<String>,
+    pub shortcuts: bool,
     pub commands: Vec<Command>,
 }
 
@@ -28,13 +29,16 @@ impl Config {
     fn load() -> Self {
         let mut token = None;
         let mut user = None;
+        let mut shortcuts = false;
         let mut commands = Vec::new();
         for (k, v) in env::vars() {
             if v.is_empty() {
                 continue;
             }
             if k == "GITLAB_USER" {
-                user = Some(v)
+                user = Some(v);
+            } else if k == "GITLAB_SHORTCUTS" && matches!(&*v, "1" | "true") {
+                shortcuts = true;
             } else if k == "GITLAB_TOKEN" {
                 token = Some(v);
             } else if let Some(name) = k.strip_prefix("GITLAB_ISSUES_") {
@@ -42,18 +46,19 @@ impl Config {
                     kind: Kind::Issues,
                     name: name.to_lowercase().replace('_', "-"),
                     project: v,
-                })
+                });
             } else if let Some(name) = k.strip_prefix("GITLAB_MERGE_REQUESTS_") {
                 commands.push(Command {
                     kind: Kind::MergeRequests,
                     name: name.to_lowercase().replace('_', "-"),
                     project: v,
-                })
+                });
             }
         }
         Config {
             token,
             user,
+            shortcuts,
             commands,
         }
     }

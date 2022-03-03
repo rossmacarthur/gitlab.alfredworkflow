@@ -169,10 +169,16 @@ echo "&lt;a href="$url"&gt;$title&lt;/a&gt;" |\
 	<key>readme</key>
 	<string># Configuration
 
-## Authentication
+## Options
 
-You will need to add a `GITLAB_TOKEN` environment variable which you can create
-using [this link](https://gitlab.com/-/profile/personal_access_tokens?name=gitlab.alfredworkflow&amp;scopes=read_api).
+| Name             | Example          | Description                                                 |
+| ---------------- | ---------------- | ----------------------------------------------------------- |
+| GITLAB_TOKEN     | `glpat-S-of2...` | Personal access token                                       |
+| GITLAB_USER      | rossmacarthur    | *(Optional)* Your GitLab username. Used to sort items       |
+| GITLAB_SHORTCUTS | true             | *(Optional)* Adds slash shortcuts like `/new` and `/boards` |
+
+The `GITLAB_TOKEN` environment variable is required. You can create it using
+[this link](https://gitlab.com/-/profile/personal_access_tokens?name=gitlab.alfredworkflow&amp;scopes=read_api).
 It only needs the `read_api` permission.
 
 ## Commands
@@ -229,6 +235,8 @@ first.</string>
 		<string>*project-path here*</string>
 		<key>GITLAB_MERGE_REQUESTS_REPO</key>
 		<string>*project-path here*</string>
+		<key>GITLAB_SHORTCUTS</key>
+		<string>true</string>
 		<key>GITLAB_TOKEN</key>
 		<string></string>
 		<key>GITLAB_USER</key>

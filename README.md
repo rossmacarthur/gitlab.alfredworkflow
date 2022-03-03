@@ -47,10 +47,16 @@ The release will be available at `target/workflow/gitlab.alfredworkflow`.
 
 ## Configuration
 
-### Authentication
+### Options
 
-You will need to add a `GITLAB_TOKEN` environment variable which you can create
-using [this link](https://gitlab.com/-/profile/personal_access_tokens?name=gitlab.alfredworkflow&scopes=read_api).
+| Name             | Example          | Description                                                 |
+| ---------------- | ---------------- | ----------------------------------------------------------- |
+| GITLAB_TOKEN     | `glpat-S-of2...` | Personal access token                                       |
+| GITLAB_USER      | rossmacarthur    | *(Optional)* Your GitLab username. Used to sort items       |
+| GITLAB_SHORTCUTS | true             | *(Optional)* Adds slash shortcuts like `/new` and `/boards` |
+
+The `GITLAB_TOKEN` environment variable is required. You can create it using
+[this link](https://gitlab.com/-/profile/personal_access_tokens?name=gitlab.alfredworkflow&scopes=read_api).
 It only needs the `read_api` permission.
 
 ### Commands

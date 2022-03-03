@@ -144,12 +144,23 @@ impl Command {
 
         let items = match self.kind {
             Kind::Issues => {
-                let mut issues = gitlab::issues(&self.name, &self.project)?;
-                issues.sort_by_key(Issue::ours_first);
-                issues
-                    .into_iter()
-                    .filter_map(|i| i.matches(query).then(|| i.into_item(now)))
-                    .collect()
+                let mut items = Vec::new();
+                if let Some(query) = query.strip_prefix('/') {
+                    for (cmd, f) in EXTRAS {
+                        if cmd.starts_with(query) {
+                            items.push(f(&self.project));
+                        }
+                    }
+                }
+                let issues = {
+                    let mut issues = gitlab::issues(&self.name, &self.project)?;
+                    issues.sort_by_key(Issue::ours_first);
+                    issues
+                        .into_iter()
+                        .filter_map(|i| i.matches(query).then(|| i.into_item(now)))
+                };
+                items.extend(issues);
+                items
             }
             Kind::MergeRequests => {
                 let mut merge_requests = gitlab::merge_requests(&self.name, &self.project)?;
@@ -163,6 +174,24 @@ impl Command {
 
         Ok(items)
     }
+}
+
+type ItemFn = fn(&str) -> Item<'static>;
+
+const EXTRAS: &[(&str, ItemFn)] = &[("new", new_item), ("boards", boards_item)];
+
+fn new_item(project: &str) -> Item<'static> {
+    Item::new("/new")
+        .subtitle(format!("Create a new issue in {}", project))
+        .arg(format!("https://gitlab.com/{}/issues/new", project))
+}
+
+fn boards_item(project: &str) -> Item<'static> {
+    let p = project.trim_end_matches('/');
+    let p = p.rsplit_once('/').map(|(p, _)| p).unwrap_or(p);
+    Item::new("/boards")
+        .subtitle(format!("Open the issue boards for {}", project))
+        .arg(format!("https://gitlab.com/groups/{}/-/boards", p))
 }
 
 fn run() -> Result<()> {
