@@ -43,7 +43,9 @@ jobs:
         run: echo "::set-output name=value::${GITHUB_REF#refs/tags/}"
 
       - name: Check tag against package version
-        run: grep '^version = "${{ steps.version.outputs.value }}"$' Cargo.toml
+        run: |
+          grep '^version = "${{ steps.version.outputs.value }}"$' Cargo.toml
+          grep '<string>${{ steps.version.outputs.value }}</string>' workflow/info.plist
 
   release:
     needs: check-version
