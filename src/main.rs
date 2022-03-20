@@ -47,8 +47,8 @@ impl Issue {
             .as_ref()
             .map(|u| {
                 (
-                    self.author.matches(u),
                     self.assignees.iter().any(|a| a.matches(u)),
+                    self.author.matches(u),
                 )
             })
             .unwrap_or((false, false));
@@ -69,7 +69,7 @@ impl Issue {
         })
     }
 
-    fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item<'static> {
+    fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item {
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
         let subtitle = if self.assignees.is_empty() {
             format!("{}, authored by {}", ago, self.author.name)
@@ -113,7 +113,7 @@ impl MergeRequest {
         })
     }
 
-    fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item<'static> {
+    fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item {
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
         let subtitle = format!("{} by {}", ago, self.author.name);
         let arg = format!("{};{}", &self.url, &self.title);
@@ -128,7 +128,7 @@ impl User {
 }
 
 impl Command {
-    fn to_item(&self) -> Item<'_> {
+    fn to_item(&self) -> Item {
         let subtitle = match self.kind {
             Kind::Issues => format!("Search issues in {}", self.project),
             Kind::MergeRequests => format!("Search merge requests in {}", self.project),
@@ -139,7 +139,7 @@ impl Command {
             .autocomplete(format!("{} ", self.name))
     }
 
-    fn exec(&self, query: &str) -> Result<Vec<Item<'static>>> {
+    fn exec(&self, query: &str) -> Result<Vec<Item>> {
         let now = chrono::Utc::now();
 
         let items = match self.kind {
@@ -176,17 +176,17 @@ impl Command {
     }
 }
 
-type ItemFn = fn(&str) -> Item<'static>;
+type ItemFn = fn(&str) -> Item;
 
 const EXTRAS: &[(&str, ItemFn)] = &[("new", new_item), ("boards", boards_item)];
 
-fn new_item(project: &str) -> Item<'static> {
+fn new_item(project: &str) -> Item {
     Item::new("/new")
         .subtitle(format!("Create a new issue in {}", project))
         .arg(format!("https://gitlab.com/{}/issues/new", project))
 }
 
-fn boards_item(project: &str) -> Item<'static> {
+fn boards_item(project: &str) -> Item {
     let p = project.trim_end_matches('/');
     let p = p.rsplit_once('/').map(|(p, _)| p).unwrap_or(p);
     Item::new("/boards")

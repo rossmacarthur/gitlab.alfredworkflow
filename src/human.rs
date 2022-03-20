@@ -1,6 +1,5 @@
+use std::borrow::Cow;
 use std::time::Duration;
-
-use dairy::Cow;
 
 pub fn format_ago(d: Duration) -> Cow<'static, str> {
     match d.as_secs() {

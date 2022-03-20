@@ -17,9 +17,8 @@ const UPDATE_INTERVAL: Duration = Duration::from_secs(15);
 
 pub static DIR: Lazy<PathBuf> = Lazy::new(|| {
     env::workflow_cache().unwrap_or_else(|| {
-        let bundle_id = env::workflow_bundle_id()
-            .map(dairy::String::from)
-            .unwrap_or_else(|| "io.macarthur.ross.gitlab".into());
+        let bundle_id =
+            env::workflow_bundle_id().unwrap_or_else(|| "io.macarthur.ross.gitlab".into());
         home::home_dir()
             .unwrap()
             .join("Library/Caches/com.runningwithcrayons.Alfred/Workflow Data")
