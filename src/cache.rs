@@ -65,9 +65,9 @@ where
                 Err(err) => log::error!("{:#}", err),
             })?;
 
-            // wait up to 5 seconds for the cache to be populated
+            // wait up to 2 seconds for the cache to be populated
             let start = Instant::now();
-            let poll_duration = Duration::from_secs(5);
+            let poll_duration = Duration::from_secs(2);
             while Instant::now().duration_since(start) < poll_duration {
                 thread::sleep(Duration::from_millis(200));
                 if let Ok(data) = fs::read(&path) {
@@ -86,9 +86,10 @@ where
     F: FnOnce() -> Result<json::Value>,
 {
     logger::init()?;
+    let tmp = path.with_extension("tmp");
     if let Some(_guard) = fmutex::try_lock(dir)? {
         let data = f()?;
-        let file = fs::File::create(path)?;
+        let file = fs::File::create(&tmp)?;
         let modified = SystemTime::now();
         json::to_writer(
             &file,
@@ -98,6 +99,7 @@ where
                 data,
             },
         )?;
+        fs::rename(tmp, path)?;
     }
     Ok(())
 }
