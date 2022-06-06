@@ -2,14 +2,85 @@ use std::io::prelude::*;
 
 use anyhow::{anyhow, Context, Result};
 use chrono::DateTime;
+use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json as json;
 
 use crate::config::CONFIG;
 use crate::{Issue, MergeRequest};
 
-fn fetch<T: DeserializeOwned>(query: &str, token: &str) -> Result<T> {
+type ParseFn<T> = fn(json::Value) -> Result<T>;
+
+struct Query<'a, T> {
+    name: &'a str,
+    project: &'a str,
+    template: &'a str,
+    page_info_ptr: &'a str,
+    nodes_ptr: &'a str,
+    parse_fn: ParseFn<T>,
+}
+
+#[derive(Deserialize)]
+struct PageInfo {
+    #[serde(rename = "endCursor")]
+    cursor: String,
+    #[serde(rename = "hasNextPage")]
+    has_next: bool,
+}
+
+impl<T> Query<'_, T> {
+    fn checksum(&self) -> [u8; 20] {
+        use sha1::*;
+        let mut hasher = Sha1::new();
+        hasher.update(self.name.as_bytes());
+        hasher.update(self.project.as_bytes());
+        hasher.update(self.template.as_bytes());
+        hasher.finalize().try_into().unwrap()
+    }
+}
+
+fn fetch_and_parse<T>(q: Query<'_, T>) -> Result<Vec<T>> {
+    let token = CONFIG
+        .token
+        .as_ref()
+        .ok_or_else(|| anyhow!("GITLAB_TOKEN environment variable is not set!"))?;
+
+    let mut r = crate::cache::load(q.name, q.checksum(), || fetch_all(&q, token))?;
+    let resps = r
+        .as_array_mut()
+        .context("cache value is not an array")?
+        .drain(..);
+
+    let mut nodes = Vec::new();
+    for resp in resps {
+        let ns: Vec<json::Value> = lookup(&resp, q.nodes_ptr)?;
+        nodes.extend(ns);
+    }
+    nodes.into_iter().map(q.parse_fn).collect()
+}
+
+fn fetch_all<T>(q: &Query<'_, T>, token: &str) -> Result<json::Value> {
+    static ENGINE: Lazy<upon::Engine> =
+        Lazy::new(|| upon::Engine::with_delims("<?", "?>", "<", ">"));
+
+    let template = ENGINE.compile(q.template)?;
+
+    let mut array = Vec::new();
+    let mut args = None;
+    loop {
+        let query = template.render(upon::value! { project: q.project, args: args })?;
+        let resp = fetch(&query, token)?;
+        let page_info: PageInfo = lookup(&resp, q.page_info_ptr)?;
+        array.push(resp);
+        if !page_info.has_next {
+            break Ok(json::Value::Array(array));
+        }
+        args = Some(format!(", after:\"{}\"", page_info.cursor));
+    }
+}
+
+fn fetch(query: &str, token: &str) -> Result<json::Value> {
     #[derive(Debug, Serialize)]
     struct Query<'a> {
         query: &'a str,
@@ -43,27 +114,11 @@ fn fetch<T: DeserializeOwned>(query: &str, token: &str) -> Result<T> {
     Ok(serde_json::from_slice(&buf)?)
 }
 
-fn fetch_and_parse<T>(
-    name: &str,
-    query: &str,
-    checksum: [u8; 20],
-    ptr: &str,
-    parse_fn: fn(json::Value) -> Result<T>,
-) -> Result<Vec<T>> {
-    let token = CONFIG
-        .token
-        .as_ref()
-        .ok_or_else(|| anyhow!("GITLAB_TOKEN environment variable is not set!"))?;
-    let resp = crate::cache::load(name, checksum, || fetch(query, token))?;
-    let nodes: Vec<json::Value> = lookup(&resp, ptr)?;
-    nodes.into_iter().map(parse_fn).collect()
-}
-
 pub fn issues(name: &str, project: &str) -> Result<Vec<Issue>> {
-    let query = r#"
+    let template = r#"
 query {
     project(fullPath: "<project>") {
-        issues(state: opened) {
+        issues(state: opened <args>) {
             nodes {
                 title
                 author {
@@ -84,21 +139,29 @@ query {
                     }
                 }
             }
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
         }
     }
 }
-"#
-    .replace("<project>", project);
-    let ptr = "/data/project/issues/nodes";
-    let checksum = checksum(&query);
-    fetch_and_parse(name, &query, checksum, ptr, parse_issue)
+"#;
+    fetch_and_parse(Query {
+        name,
+        project,
+        template,
+        page_info_ptr: "/data/project/issues/pageInfo",
+        nodes_ptr: "/data/project/issues/nodes",
+        parse_fn: parse_issue,
+    })
 }
 
 pub fn merge_requests(name: &str, project: &str) -> Result<Vec<MergeRequest>> {
-    let query = r#"
+    let template = r#"
 query {
     project(fullPath: "<project>") {
-        mergeRequests(state: opened) {
+        mergeRequests(state: opened <args>) {
             nodes {
                 title
                 author {
@@ -113,14 +176,23 @@ query {
                     }
                 }
             }
+
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
         }
     }
 }
-"#
-    .replace("<project>", project);
-    let ptr = "/data/project/mergeRequests/nodes";
-    let checksum = checksum(&query);
-    fetch_and_parse(name, &query, checksum, ptr, parse_merge_request)
+"#;
+    fetch_and_parse(Query {
+        name,
+        project,
+        template,
+        page_info_ptr: "/data/project/mergeRequests/pageInfo",
+        nodes_ptr: "/data/project/mergeRequests/nodes",
+        parse_fn: parse_merge_request,
+    })
 }
 
 fn parse_issue(value: json::Value) -> Result<Issue> {
@@ -171,11 +243,4 @@ where
 {
     let list: Vec<json::Value> = lookup(value, ptr)?;
     list.into_iter().map(|v| lookup(&v, sub_ptr)).collect()
-}
-
-fn checksum(query: &str) -> [u8; 20] {
-    use sha1::*;
-    let mut hasher = Sha1::new();
-    hasher.update(query.as_bytes());
-    hasher.finalize().try_into().unwrap()
 }
