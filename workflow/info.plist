@@ -50,7 +50,7 @@
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
-	<string>gitlab</string>
+	<string>GitLab</string>
 	<key>objects</key>
 	<array>
 		<dict>
