@@ -2,7 +2,7 @@
 
 ## 0.3.0
 
-*Unreleased*
+*June 6th, 2022*
 
 - [Fix error when reading from cache while updating.][db6c8df]
 - [Support pagination on GitLab queries.][ea44f50]
