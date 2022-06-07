@@ -1,5 +1,13 @@
 # Releases
 
+## 0.3.1
+
+*June 7th, 2022*
+
+- [Fix catastrophic template rendering bug][afb00fe]
+
+[afb00fe]: https://github.com/rossmacarthur/gitlab.alfredworkflow/commit/afb00fe047914e7a25edf407a00afb4768daa1af
+
 ## 0.3.0
 
 *June 6th, 2022*
