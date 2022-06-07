@@ -2,7 +2,6 @@ use std::io::prelude::*;
 
 use anyhow::{anyhow, Context, Result};
 use chrono::DateTime;
-use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json as json;
@@ -61,10 +60,8 @@ fn fetch_and_parse<T>(q: Query<'_, T>) -> Result<Vec<T>> {
 }
 
 fn fetch_all<T>(q: &Query<'_, T>, token: &str) -> Result<json::Value> {
-    static ENGINE: Lazy<upon::Engine> =
-        Lazy::new(|| upon::Engine::with_delims("<?", "?>", "<", ">"));
-
-    let template = ENGINE.compile(q.template)?;
+    let engine = upon::Engine::with_delims("<", ">", "<[", "]>");
+    let template = engine.compile(q.template)?;
 
     let mut array = Vec::new();
     let mut args = None;
