@@ -50,7 +50,8 @@ where
 
             if needs_update {
                 detach::spawn(|| match update(&dir, &path, checksum, f) {
-                    Ok(()) => log::info!("fetched {} and updated cache", path.display()),
+                    Ok(true) => log::info!("fetched {} and updated cache", path.display()),
+                    Ok(false) => {}
                     Err(err) => log::error!("{:#}", err),
                 })?;
             }
@@ -61,7 +62,8 @@ where
             fs::create_dir_all(&dir)?;
 
             detach::spawn(|| match update(&dir, &path, checksum, f) {
-                Ok(()) => log::info!("fetched {} and updated cache", path.display()),
+                Ok(true) => log::info!("fetched {} and updated cache", path.display()),
+                Ok(false) => {}
                 Err(err) => log::error!("{:#}", err),
             })?;
 
@@ -81,7 +83,7 @@ where
     }
 }
 
-fn update<F>(dir: &Path, path: &Path, checksum: [u8; 20], f: F) -> Result<()>
+fn update<F>(dir: &Path, path: &Path, checksum: [u8; 20], f: F) -> Result<bool>
 where
     F: FnOnce() -> Result<json::Value>,
 {
@@ -100,6 +102,8 @@ where
             },
         )?;
         fs::rename(tmp, path)?;
+        Ok(true)
+    } else {
+        Ok(false)
     }
-    Ok(())
 }
