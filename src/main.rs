@@ -6,7 +6,9 @@ mod logger;
 
 use std::cmp::Reverse;
 use std::env;
+use std::io;
 use std::iter;
+use std::time::Duration;
 
 use anyhow::Result;
 use chrono::DateTime;
@@ -225,7 +227,10 @@ fn run() -> Result<()> {
         }
     };
 
-    powerpack::output(items)?;
+    powerpack::Output::new()
+        .items(items)
+        .rerun(Duration::from_secs(1))
+        .write(io::stdout())?;
 
     Ok(())
 }
