@@ -141,7 +141,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "upon",
 ]
 
 [[package]]
@@ -382,22 +381,6 @@ name = "unicode-ident"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d22af068fba1eb5edcb4aea19d382b2a3deb4c8f9d475c589b6ada9e0fd493ee"
-
-[[package]]
-name = "unicode-width"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973"
-
-[[package]]
-name = "upon"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c70579f216a758dcb695ec3a44cedbe439478522318354a80caf540967ad3b2d"
-dependencies = [
- "serde",
- "unicode-width",
-]
 
 [[package]]
 name = "vcpkg"

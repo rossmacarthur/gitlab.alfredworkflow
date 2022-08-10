@@ -14,10 +14,16 @@ type ParseFn<T> = fn(json::Value) -> Result<T>;
 struct Query<'a, T> {
     name: &'a str,
     project: &'a str,
-    template: &'a str,
+    query: &'a str,
     page_info_ptr: &'a str,
     nodes_ptr: &'a str,
     parse_fn: ParseFn<T>,
+}
+
+#[derive(Debug, Serialize)]
+struct Variables<'a> {
+    project: &'a str,
+    after: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -34,7 +40,7 @@ impl<T> Query<'_, T> {
         let mut hasher = Sha1::new();
         hasher.update(self.name.as_bytes());
         hasher.update(self.project.as_bytes());
-        hasher.update(self.template.as_bytes());
+        hasher.update(self.query.as_bytes());
         hasher.finalize().try_into().unwrap()
     }
 }
@@ -60,32 +66,33 @@ fn fetch_and_parse<T>(q: Query<'_, T>) -> Result<Vec<T>> {
 }
 
 fn fetch_all<T>(q: &Query<'_, T>, token: &str) -> Result<json::Value> {
-    let engine = upon::Engine::with_delims("<", ">", "<[", "]>");
-    let template = engine.compile(q.template)?;
-
     let mut array = Vec::new();
-    let mut args = None;
+    let mut variables = Variables {
+        project: q.project,
+        after: None,
+    };
+
     loop {
-        let query = template.render(upon::value! { project: q.project, args: args })?;
-        let resp = fetch(&query, token)?;
+        let resp = fetch(q.query, &variables, token)?;
         let page_info: PageInfo = lookup(&resp, q.page_info_ptr)?;
         array.push(resp);
         if !page_info.has_next {
             break Ok(json::Value::Array(array));
         }
-        args = Some(format!(", after:\"{}\"", page_info.cursor));
+        variables.after = Some(page_info.cursor);
     }
 }
 
-fn fetch(query: &str, token: &str) -> Result<json::Value> {
+fn fetch(query: &str, variables: &Variables, token: &str) -> Result<json::Value> {
     #[derive(Debug, Serialize)]
     struct Query<'a> {
         query: &'a str,
+        variables: &'a Variables<'a>,
     }
 
     let mut buf = Vec::new();
     let mut easy = curl::easy::Easy::new();
-    let mut data = &*serde_json::to_vec(&Query { query })?;
+    let mut data = &*serde_json::to_vec(&Query { query, variables })?;
 
     easy.fail_on_error(true)?;
     easy.follow_location(true)?;
@@ -112,10 +119,10 @@ fn fetch(query: &str, token: &str) -> Result<json::Value> {
 }
 
 pub fn issues(name: &str, project: &str) -> Result<Vec<Issue>> {
-    let template = r#"
-query {
-    project(fullPath: "<project>") {
-        issues(state: opened <args>) {
+    let query = r#"
+query($project: ID!, $after: String) {
+    project(fullPath: $project) {
+        issues(state: opened, after: $after) {
             nodes {
                 title
                 author {
@@ -147,7 +154,7 @@ query {
     fetch_and_parse(Query {
         name,
         project,
-        template,
+        query,
         page_info_ptr: "/data/project/issues/pageInfo",
         nodes_ptr: "/data/project/issues/nodes",
         parse_fn: parse_issue,
@@ -156,9 +163,9 @@ query {
 
 pub fn merge_requests(name: &str, project: &str) -> Result<Vec<MergeRequest>> {
     let template = r#"
-query {
-    project(fullPath: "<project>") {
-        mergeRequests(state: opened <args>) {
+query($project: ID!, $after: String) {
+    project(fullPath: $project) {
+        mergeRequests(state: opened, after: $after) {
             nodes {
                 title
                 author {
@@ -173,7 +180,6 @@ query {
                     }
                 }
             }
-
             pageInfo {
                 endCursor
                 hasNextPage
@@ -185,7 +191,7 @@ query {
     fetch_and_parse(Query {
         name,
         project,
-        template,
+        query: template,
         page_info_ptr: "/data/project/mergeRequests/pageInfo",
         nodes_ptr: "/data/project/mergeRequests/nodes",
         parse_fn: parse_merge_request,
