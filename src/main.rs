@@ -180,7 +180,11 @@ impl Command {
 
 type ItemFn = fn(&str) -> Item;
 
-const EXTRAS: &[(&str, ItemFn)] = &[("new", new_item), ("boards", boards_item)];
+const EXTRAS: &[(&str, ItemFn)] = &[
+    ("new", new_item),
+    ("boards", boards_item),
+    ("list", list_item),
+];
 
 fn new_item(project: &str) -> Item {
     Item::new("/new")
@@ -194,6 +198,12 @@ fn boards_item(project: &str) -> Item {
     Item::new("/boards")
         .subtitle(format!("Open the issue boards for {}", project))
         .arg(format!("https://gitlab.com/groups/{}/-/boards", p))
+}
+
+fn list_item(project: &str) -> Item {
+    Item::new("/list")
+        .subtitle(format!("Open the issue list for {}", project))
+        .arg(format!("https://gitlab.com/{}/-/issues", project))
 }
 
 fn run() -> Result<()> {
