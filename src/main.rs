@@ -72,22 +72,22 @@ impl Issue {
     }
 
     fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item {
+        let Self { title, url, .. } = self;
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
         let subtitle = if self.assignees.is_empty() {
-            format!("{}, authored by {}", ago, self.author.name)
+            let author = self.author.name;
+            format!("{ago}, authored by {author}")
         } else {
-            format!(
-                "{}, assigned to {}",
-                ago,
-                self.assignees
-                    .iter()
-                    .map(|u| u.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
+            let assignees = self
+                .assignees
+                .iter()
+                .map(|u| u.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{ago}, assigned to {assignees}")
         };
-        let arg = format!("{};{}", &self.url, &self.title);
-        powerpack::Item::new(self.title).subtitle(subtitle).arg(arg)
+        let arg = format!("{url};{title}");
+        powerpack::Item::new(title).subtitle(subtitle).arg(arg)
     }
 }
 
@@ -116,10 +116,12 @@ impl MergeRequest {
     }
 
     fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item {
+        let Self { title, url, .. } = self;
         let ago = human::format_ago((now - self.created_at).to_std().unwrap());
-        let subtitle = format!("{} by {}", ago, self.author.name);
-        let arg = format!("{};{}", &self.url, &self.title);
-        powerpack::Item::new(self.title).subtitle(subtitle).arg(arg)
+        let author = self.author.name;
+        let subtitle = format!("{ago} by {author}");
+        let arg = format!("{url};{title}");
+        powerpack::Item::new(title).subtitle(subtitle).arg(arg)
     }
 }
 
@@ -131,14 +133,15 @@ impl User {
 
 impl Command {
     fn to_item(&self) -> Item {
+        let Self { name, project, .. } = self;
         let subtitle = match self.kind {
-            Kind::Issues => format!("Search issues in {}", self.project),
-            Kind::MergeRequests => format!("Search merge requests in {}", self.project),
+            Kind::Issues => format!("Search issues in {project}"),
+            Kind::MergeRequests => format!("Search merge requests in {project}"),
         };
         Item::new(&self.name)
             .subtitle(subtitle)
-            .arg(format!("https://gitlab.com/{};{}", self.project, self.name))
-            .autocomplete(format!("{} ", self.name))
+            .arg(format!("https://gitlab.com/{project};{name}"))
+            .autocomplete(format!("{name} "))
     }
 
     fn exec(&self, query: &str) -> Result<Vec<Item>> {
@@ -188,22 +191,22 @@ const EXTRAS: &[(&str, ItemFn)] = &[
 
 fn new_item(project: &str) -> Item {
     Item::new("/new")
-        .subtitle(format!("Create a new issue in {}", project))
-        .arg(format!("https://gitlab.com/{}/issues/new", project))
+        .subtitle(format!("Create a new issue in {project}"))
+        .arg(format!("https://gitlab.com/{project}/issues/new"))
 }
 
 fn boards_item(project: &str) -> Item {
     let p = project.trim_end_matches('/');
     let p = p.rsplit_once('/').map(|(p, _)| p).unwrap_or(p);
     Item::new("/boards")
-        .subtitle(format!("Open the issue boards for {}", project))
-        .arg(format!("https://gitlab.com/groups/{}/-/boards", p))
+        .subtitle(format!("Open the issue boards for {project}"))
+        .arg(format!("https://gitlab.com/groups/{p}/-/boards"))
 }
 
 fn list_item(project: &str) -> Item {
     Item::new("/list")
-        .subtitle(format!("Open the issue list for {}", project))
-        .arg(format!("https://gitlab.com/{}/-/issues", project))
+        .subtitle(format!("Open the issue list for {project}"))
+        .arg(format!("https://gitlab.com/{project}/-/issues"))
 }
 
 fn run() -> Result<()> {
@@ -247,8 +250,8 @@ fn run() -> Result<()> {
 
 fn main() -> Result<()> {
     if let Err(err) = run() {
-        eprintln!("{:#}", err);
-        let item = Item::new(format!("Error: {}", err)).subtitle(
+        eprintln!("{err:#}");
+        let item = Item::new(format!("Error: {err}")).subtitle(
             "The workflow errored! \
              You might want to try debugging it or checking the logs.",
         );

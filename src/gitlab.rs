@@ -98,7 +98,7 @@ fn fetch(query: &str, variables: &Variables, token: &str) -> Result<json::Value>
     easy.follow_location(true)?;
     easy.http_headers({
         let mut hl = curl::easy::List::new();
-        hl.append(&format!("Authorization: Bearer {}", token))?;
+        hl.append(&format!("Authorization: Bearer {token}"))?;
         hl.append("Content-Type: application/json")?;
         hl
     })?;
@@ -236,7 +236,7 @@ where
 {
     let v = value
         .pointer(ptr)
-        .with_context(|| format!("failed to lookup `{}`", ptr))?;
+        .with_context(|| format!("failed to lookup `{ptr}`"))?;
     Ok(json::from_value(v.clone())?)
 }
 
