@@ -1,8 +1,6 @@
-mod cache;
 mod config;
 mod gitlab;
 mod human;
-mod logger;
 
 use std::cmp::Reverse;
 use std::env;
@@ -12,10 +10,16 @@ use std::time::Duration;
 
 use anyhow::Result;
 use chrono::DateTime;
+use constcat::concat;
+use powerpack::logger;
 use powerpack::Item;
 use serde::Deserialize;
 
 use crate::config::{Command, Kind, CONFIG};
+
+const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+const LOG_FILENAME: &str = concat!(PKG_NAME, "-", PKG_VERSION, ".log");
 
 #[derive(Debug)]
 pub struct Issue {
@@ -162,7 +166,8 @@ impl Command {
                     issues.sort_by_key(Issue::ours_first);
                     issues
                         .into_iter()
-                        .filter_map(|i| i.matches(query).then(|| i.into_item(now)))
+                        .filter(|i| i.matches(query))
+                        .map(|i| i.into_item(now))
                 };
                 items.extend(issues);
                 items
@@ -172,7 +177,8 @@ impl Command {
                 merge_requests.sort_by_key(MergeRequest::ours_first);
                 merge_requests
                     .into_iter()
-                    .filter_map(|m| m.matches(query).then(|| m.into_item(now)))
+                    .filter(|m| m.matches(query))
+                    .map(|m| m.into_item(now))
                     .collect()
             }
         };
@@ -210,6 +216,8 @@ fn list_item(project: &str) -> Item {
 }
 
 fn run() -> Result<()> {
+    logger::Builder::new().filename(LOG_FILENAME).try_init()?;
+
     let arg = env::args()
         .nth(1)
         .as_deref()
@@ -234,7 +242,8 @@ fn run() -> Result<()> {
                 None => CONFIG
                     .commands
                     .iter()
-                    .filter_map(|c| c.name.starts_with(cmd).then(|| c.to_item()))
+                    .filter(|c| c.name.starts_with(cmd))
+                    .map(Command::to_item)
                     .collect(),
             }
         }
