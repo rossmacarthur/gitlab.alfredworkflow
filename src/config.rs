@@ -1,8 +1,7 @@
 use std::env;
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
-
-pub static CONFIG: Lazy<Config> = Lazy::new(Config::load);
+pub static CONFIG: LazyLock<Config> = LazyLock::new(Config::load);
 
 #[derive(Debug)]
 pub struct Config {

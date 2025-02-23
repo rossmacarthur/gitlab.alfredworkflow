@@ -1,13 +1,22 @@
 use std::io::prelude::*;
+use std::sync::LazyLock;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::DateTime;
+use powerpack::cache;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json as json;
 
 use crate::config::CONFIG;
 use crate::{Issue, MergeRequest};
+
+static CACHE: LazyLock<cache::Cache> = LazyLock::new(|| {
+    cache::Builder::new()
+        .ttl(Duration::from_secs(60))
+        .initial_poll(Duration::from_millis(500))
+        .build()
+});
 
 type ParseFn<T> = fn(json::Value) -> Result<T>;
 
@@ -41,7 +50,7 @@ impl<T> Query<'_, T> {
         hasher.update(self.name.as_bytes());
         hasher.update(self.project.as_bytes());
         hasher.update(self.query.as_bytes());
-        hasher.finalize().try_into().unwrap()
+        hasher.finalize().into()
     }
 }
 
@@ -51,7 +60,11 @@ fn fetch_and_parse<T>(q: Query<'_, T>) -> Result<Vec<T>> {
         .as_ref()
         .ok_or_else(|| anyhow!("GITLAB_TOKEN environment variable is not set!"))?;
 
-    let mut r = crate::cache::load(q.name, q.checksum(), || fetch_all(&q, token))?;
+    let mut r = CACHE.query(
+        cache::Query::new(q.name)
+            .checksum(q.checksum())
+            .update_fn(|| fetch_all(&q, token)),
+    )?;
     let resps = r
         .as_array_mut()
         .context("cache value is not an array")?
@@ -201,7 +214,7 @@ query($project: ID!, $after: String) {
 fn parse_issue(value: json::Value) -> Result<Issue> {
     let title = lookup(&value, "/title")?;
     let author = lookup(&value, "/author")?;
-    let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
+    let created_at: jiff::Timestamp = lookup::<String>(&value, "/createdAt")?.parse()?;
     let url = lookup(&value, "/webUrl")?;
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
     let assignees = lookup_list(&value, "/assignees/nodes", "")?;
@@ -218,7 +231,7 @@ fn parse_issue(value: json::Value) -> Result<Issue> {
 fn parse_merge_request(value: json::Value) -> Result<MergeRequest> {
     let title = lookup(&value, "/title")?;
     let author = lookup(&value, "/author")?;
-    let created_at: DateTime<chrono::Utc> = lookup::<String>(&value, "/createdAt")?.parse()?;
+    let created_at: jiff::Timestamp = lookup::<String>(&value, "/createdAt")?.parse()?;
     let url = lookup(&value, "/webUrl")?;
     let labels = lookup_list(&value, "/labels/nodes", "/title")?;
     Ok(MergeRequest {

@@ -1,8 +1,6 @@
-mod cache;
 mod config;
 mod gitlab;
 mod human;
-mod logger;
 
 use std::cmp::Reverse;
 use std::env;
@@ -11,11 +9,16 @@ use std::iter;
 use std::time::Duration;
 
 use anyhow::Result;
-use chrono::DateTime;
+use constcat::concat;
+use powerpack::logger;
 use powerpack::Item;
 use serde::Deserialize;
 
 use crate::config::{Command, Kind, CONFIG};
+
+const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+const LOG_FILENAME: &str = concat!(PKG_NAME, "-", PKG_VERSION, ".log");
 
 #[derive(Debug)]
 pub struct Issue {
@@ -23,7 +26,7 @@ pub struct Issue {
     author: User,
     assignees: Vec<User>,
     url: String,
-    created_at: DateTime<chrono::Utc>,
+    created_at: jiff::Timestamp,
     labels: Vec<String>,
 }
 
@@ -32,7 +35,7 @@ pub struct MergeRequest {
     title: String,
     author: User,
     url: String,
-    created_at: DateTime<chrono::Utc>,
+    created_at: jiff::Timestamp,
     labels: Vec<String>,
 }
 
@@ -71,9 +74,9 @@ impl Issue {
         })
     }
 
-    fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item {
+    fn into_item(self, now: jiff::Timestamp) -> Item {
         let Self { title, url, .. } = self;
-        let ago = human::format_ago((now - self.created_at).to_std().unwrap());
+        let ago = human::format_ago((now - self.created_at).try_into().unwrap());
         let subtitle = if self.assignees.is_empty() {
             let author = self.author.name;
             format!("{ago}, authored by {author}")
@@ -115,9 +118,9 @@ impl MergeRequest {
         })
     }
 
-    fn into_item(self, now: chrono::DateTime<chrono::Utc>) -> Item {
+    fn into_item(self, now: jiff::Timestamp) -> Item {
         let Self { title, url, .. } = self;
-        let ago = human::format_ago((now - self.created_at).to_std().unwrap());
+        let ago = human::format_ago((now - self.created_at).try_into().unwrap());
         let author = self.author.name;
         let subtitle = format!("{ago} by {author}");
         let arg = format!("{url};{title}");
@@ -145,15 +148,17 @@ impl Command {
     }
 
     fn exec(&self, query: &str) -> Result<Vec<Item>> {
-        let now = chrono::Utc::now();
+        let now = jiff::Timestamp::now();
 
         let items = match self.kind {
             Kind::Issues => {
                 let mut items = Vec::new();
                 if let Some(query) = query.strip_prefix('/') {
-                    for (cmd, f) in EXTRAS {
-                        if cmd.starts_with(query) {
-                            items.push(f(&self.project));
+                    if CONFIG.shortcuts {
+                        for (cmd, f) in EXTRAS {
+                            if cmd.starts_with(query) {
+                                items.push(f(&self.project));
+                            }
                         }
                     }
                 }
@@ -162,7 +167,8 @@ impl Command {
                     issues.sort_by_key(Issue::ours_first);
                     issues
                         .into_iter()
-                        .filter_map(|i| i.matches(query).then(|| i.into_item(now)))
+                        .filter(|i| i.matches(query))
+                        .map(|i| i.into_item(now))
                 };
                 items.extend(issues);
                 items
@@ -172,7 +178,8 @@ impl Command {
                 merge_requests.sort_by_key(MergeRequest::ours_first);
                 merge_requests
                     .into_iter()
-                    .filter_map(|m| m.matches(query).then(|| m.into_item(now)))
+                    .filter(|m| m.matches(query))
+                    .map(|m| m.into_item(now))
                     .collect()
             }
         };
@@ -210,6 +217,8 @@ fn list_item(project: &str) -> Item {
 }
 
 fn run() -> Result<()> {
+    logger::Builder::new().filename(LOG_FILENAME).try_init()?;
+
     let arg = env::args()
         .nth(1)
         .as_deref()
@@ -234,7 +243,8 @@ fn run() -> Result<()> {
                 None => CONFIG
                     .commands
                     .iter()
-                    .filter_map(|c| c.name.starts_with(cmd).then(|| c.to_item()))
+                    .filter(|c| c.name.starts_with(cmd))
+                    .map(Command::to_item)
                     .collect(),
             }
         }
