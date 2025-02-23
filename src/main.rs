@@ -5,11 +5,11 @@ mod human;
 use std::cmp::Reverse;
 use std::env;
 use std::io;
-use std::iter;
 use std::time::Duration;
 
 use anyhow::Result;
 use constcat::concat;
+use itermore::IterSorted;
 use powerpack::logger;
 use powerpack::Item;
 use serde::Deserialize;
@@ -46,7 +46,7 @@ pub struct User {
 }
 
 impl Issue {
-    fn ours_first(&self) -> Reverse<(bool, bool)> {
+    fn cmp_key(&self) -> impl Ord {
         let is_ours = CONFIG
             .user
             .as_ref()
@@ -95,7 +95,7 @@ impl Issue {
 }
 
 impl MergeRequest {
-    fn ours_first(&self) -> Reverse<bool> {
+    fn cmp_key(&self) -> impl Ord {
         let is_ours = CONFIG
             .user
             .as_ref()
@@ -155,33 +155,29 @@ impl Command {
                 let mut items = Vec::new();
                 if let Some(query) = query.strip_prefix('/') {
                     if CONFIG.shortcuts {
-                        for (cmd, f) in EXTRAS {
+                        for (cmd, f) in SHORTCUTS {
                             if cmd.starts_with(query) {
                                 items.push(f(&self.project));
                             }
                         }
                     }
                 }
-                let issues = {
-                    let mut issues = gitlab::issues(&self.name, &self.project)?;
-                    issues.sort_by_key(Issue::ours_first);
-                    issues
-                        .into_iter()
-                        .filter(|i| i.matches(query))
-                        .map(|i| i.into_item(now))
-                };
+
+                let issues = gitlab::issues(&self.name, &self.project)?
+                    .into_iter()
+                    .sorted_by_key(Issue::cmp_key)
+                    .filter(|i| i.matches(query))
+                    .map(|i| i.into_item(now));
+
                 items.extend(issues);
                 items
             }
-            Kind::MergeRequests => {
-                let mut merge_requests = gitlab::merge_requests(&self.name, &self.project)?;
-                merge_requests.sort_by_key(MergeRequest::ours_first);
-                merge_requests
-                    .into_iter()
-                    .filter(|m| m.matches(query))
-                    .map(|m| m.into_item(now))
-                    .collect()
-            }
+            Kind::MergeRequests => gitlab::merge_requests(&self.name, &self.project)?
+                .into_iter()
+                .sorted_by_key(MergeRequest::cmp_key)
+                .filter(|m| m.matches(query))
+                .map(|m| m.into_item(now))
+                .collect(),
         };
 
         Ok(items)
@@ -190,7 +186,7 @@ impl Command {
 
 type ItemFn = fn(&str) -> Item;
 
-const EXTRAS: &[(&str, ItemFn)] = &[
+const SHORTCUTS: &[(&str, ItemFn)] = &[
     ("new", new_item),
     ("boards", boards_item),
     ("list", list_item),
@@ -225,37 +221,52 @@ fn run() -> Result<()> {
         .map(str::trim)
         .map(str::to_lowercase);
 
+    if CONFIG.commands.is_empty() {
+        let item = Item::new("No commands configured yet")
+            .subtitle("Configure commands for this workflow using environment variables");
+        return output([item]);
+    }
+
     let items = match arg {
         // If no argument is given then just list the available commands.
         None => CONFIG.commands.iter().map(Command::to_item).collect(),
 
-        // Otherwise process the argument.
+        // Otherwise process the argument
         Some(arg) => {
-            // Get the command and the search query.
+            // Get the command and the search query
             let (cmd, query) = arg.split_once(char::is_whitespace).unwrap_or((&arg, ""));
 
             match CONFIG.commands.iter().find(|c| c.name == cmd) {
-                // There is a command that matches this query so execute it.
-                Some(cmd) => cmd.exec(query)?,
+                // There is a command that matches this query so execute it
+                Some(command) => {
+                    let items = command.exec(query)?;
+                    if items.is_empty() {
+                        let item = Item::new(format!("No {} found", command.kind()));
+                        return output([item]);
+                    }
+                    items
+                }
 
                 // No command matches the query exactly, output the commands
-                // that start with the half-entered command.
-                None => CONFIG
-                    .commands
-                    .iter()
-                    .filter(|c| c.name.starts_with(cmd))
-                    .map(Command::to_item)
-                    .collect(),
+                // that start with the half-entered command
+                None => {
+                    let items: Vec<_> = CONFIG
+                        .commands
+                        .iter()
+                        .filter(|c| c.name.starts_with(cmd))
+                        .map(Command::to_item)
+                        .collect();
+                    if items.is_empty() {
+                        let item = Item::new("No command found");
+                        return output([item]);
+                    }
+                    items
+                }
             }
         }
     };
 
-    powerpack::Output::new()
-        .items(items)
-        .rerun(Duration::from_secs(1))
-        .write(io::stdout())?;
-
-    Ok(())
+    output(items)
 }
 
 fn main() -> Result<()> {
@@ -265,7 +276,15 @@ fn main() -> Result<()> {
             "The workflow errored! \
              You might want to try debugging it or checking the logs.",
         );
-        powerpack::output(iter::once(item))?;
+        output([item])?;
     }
+    Ok(())
+}
+
+fn output(items: impl IntoIterator<Item = Item>) -> Result<()> {
+    powerpack::Output::new()
+        .items(items)
+        .rerun(Duration::from_secs(2))
+        .write(io::stdout())?;
     Ok(())
 }

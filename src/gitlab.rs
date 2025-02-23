@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
+use constcat::concat;
 use powerpack::cache;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -10,6 +11,8 @@ use serde_json as json;
 
 use crate::config::CONFIG;
 use crate::{Issue, MergeRequest};
+
+const USER_AGENT: &str = concat!(crate::PKG_NAME, "/", crate::PKG_VERSION);
 
 static CACHE: LazyLock<cache::Cache> = LazyLock::new(|| {
     cache::Builder::new()
@@ -21,11 +24,17 @@ static CACHE: LazyLock<cache::Cache> = LazyLock::new(|| {
 type ParseFn<T> = fn(json::Value) -> Result<T>;
 
 struct Query<'a, T> {
+    /// The name of the query, used for the cache key
     name: &'a str,
-    project: &'a str,
+    /// The GraphQL query
     query: &'a str,
+    /// Passed a variable in GraphQL query
+    project: &'a str,
+    /// A JSON pointer to the page info in the result of the query
     page_info_ptr: &'a str,
+    /// A JSON pointer to the queried data in the result of the query
     nodes_ptr: &'a str,
+    /// A function to parse the queried data into T
     parse_fn: ParseFn<T>,
 }
 
@@ -38,7 +47,7 @@ struct Variables<'a> {
 #[derive(Deserialize)]
 struct PageInfo {
     #[serde(rename = "endCursor")]
-    cursor: String,
+    cursor: Option<String>,
     #[serde(rename = "hasNextPage")]
     has_next: bool,
 }
@@ -87,12 +96,14 @@ fn fetch_all<T>(q: &Query<'_, T>, token: &str) -> Result<json::Value> {
 
     loop {
         let resp = fetch(q.query, &variables, token)?;
-        let page_info: PageInfo = lookup(&resp, q.page_info_ptr)?;
+        let page_info: PageInfo =
+            lookup(&resp, q.page_info_ptr).context("failed to lookup page info")?;
+
         array.push(resp);
         if !page_info.has_next {
             break Ok(json::Value::Array(array));
         }
-        variables.after = Some(page_info.cursor);
+        variables.after = Some(page_info.cursor.context("expected cursor in page info")?);
     }
 }
 
@@ -112,6 +123,7 @@ fn fetch(query: &str, variables: &Variables, token: &str) -> Result<json::Value>
     easy.http_headers({
         let mut hl = curl::easy::List::new();
         hl.append(&format!("Authorization: Bearer {token}"))?;
+        hl.append(&format!("User-Agent: {}", USER_AGENT))?;
         hl.append("Content-Type: application/json")?;
         hl
     })?;
